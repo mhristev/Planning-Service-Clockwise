@@ -39,6 +39,16 @@ dependencies {
 	testImplementation("org.testcontainers:postgresql")
 	testImplementation("org.testcontainers:r2dbc")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+	// Flyway for database migrations
+// Keep these organized
+implementation("org.flywaydb:flyway-core")
+implementation("org.flywaydb:flyway-database-postgresql")
+implementation("org.postgresql:postgresql")
+implementation("org.postgresql:r2dbc-postgresql")
+	implementation("jakarta.validation:jakarta.validation-api")
+
+
 }
 
 kotlin {

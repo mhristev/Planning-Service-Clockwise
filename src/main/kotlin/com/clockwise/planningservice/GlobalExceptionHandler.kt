@@ -2,20 +2,15 @@ package com.clockwise.planningservice
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.server.ServerWebExchange
 import java.time.LocalDateTime
-import org.springframework.web.reactive.result.method.annotation.ResponseEntityExceptionHandler
-import org.springframework.web.server.ServerWebExchangeDecorator
-import org.springframework.web.bind.support.WebExchangeBindException
 
 class ResourceNotFoundException(message: String) : RuntimeException(message)
 
-
 @RestControllerAdvice
-class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
+class GlobalExceptionHandler {
 
     data class ErrorResponse(
         val timestamp: LocalDateTime = LocalDateTime.now(),
@@ -42,21 +37,6 @@ class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
             status = HttpStatus.BAD_REQUEST.value(),
             error = HttpStatus.BAD_REQUEST.reasonPhrase,
             message = ex.message ?: "Invalid state",
-            path = exchange.request.uri.path
-        )
-        return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
-    }
-
-    @ExceptionHandler(WebExchangeBindException::class)
-    fun handleValidationException(ex: WebExchangeBindException, exchange: ServerWebExchange): ResponseEntity<ErrorResponse> {
-        val errorMessages = ex.bindingResult.fieldErrors
-            .mapNotNull { it.defaultMessage }
-            .joinToString(", ")
-
-        val errorResponse = ErrorResponse(
-            status = HttpStatus.BAD_REQUEST.value(),
-            error = HttpStatus.BAD_REQUEST.reasonPhrase,
-            message = errorMessages.ifEmpty { "Validation error" },
             path = exchange.request.uri.path
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)

@@ -1,7 +1,7 @@
 package com.clockwise.planningservice.repositories
 
-import com.clockwise.planningservice.domain.Schedule
 import com.clockwise.planningservice.domain.ScheduleStatus
+import com.clockwise.planningservice.domains.Schedule
 import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository

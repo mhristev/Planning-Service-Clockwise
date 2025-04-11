@@ -1,5 +1,6 @@
 package com.clockwise.planningservice.services
 
+import com.clockwise.planningservice.ResourceNotFoundException
 import com.clockwise.planningservice.domains.Availability
 import com.clockwise.planningservice.dto.AvailabilityRequest
 import com.clockwise.planningservice.dto.AvailabilityResponse

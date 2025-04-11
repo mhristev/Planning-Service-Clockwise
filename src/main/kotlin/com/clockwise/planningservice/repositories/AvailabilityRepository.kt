@@ -1,6 +1,6 @@
 package com.clockwise.planningservice.repositories
 
-import com.clockwise.planningservice.domain.Availability
+import com.clockwise.planningservice.domains.Availability
 import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository

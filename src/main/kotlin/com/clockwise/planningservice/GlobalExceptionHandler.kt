@@ -5,13 +5,17 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.server.ServerWebExchange
 import java.time.LocalDateTime
+import org.springframework.web.reactive.result.method.annotation.ResponseEntityExceptionHandler
+import org.springframework.web.server.ServerWebExchangeDecorator
+import org.springframework.web.bind.support.WebExchangeBindException
 
 class ResourceNotFoundException(message: String) : RuntimeException(message)
 
 
 @RestControllerAdvice
-class GlobalExceptionHandler {
+class GlobalExceptionHandler : ResponseEntityExceptionHandler() {
 
     data class ErrorResponse(
         val timestamp: LocalDateTime = LocalDateTime.now(),
@@ -22,29 +26,29 @@ class GlobalExceptionHandler {
     )
 
     @ExceptionHandler(ResourceNotFoundException::class)
-    fun handleResourceNotFoundException(ex: ResourceNotFoundException): ResponseEntity<ErrorResponse> {
+    fun handleResourceNotFoundException(ex: ResourceNotFoundException, exchange: ServerWebExchange): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
             status = HttpStatus.NOT_FOUND.value(),
             error = HttpStatus.NOT_FOUND.reasonPhrase,
             message = ex.message ?: "Resource not found",
-            path = getRequestPath()
+            path = exchange.request.uri.path
         )
         return ResponseEntity(errorResponse, HttpStatus.NOT_FOUND)
     }
 
     @ExceptionHandler(IllegalStateException::class)
-    fun handleIllegalStateException(ex: IllegalStateException): ResponseEntity<ErrorResponse> {
+    fun handleIllegalStateException(ex: IllegalStateException, exchange: ServerWebExchange): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
             status = HttpStatus.BAD_REQUEST.value(),
             error = HttpStatus.BAD_REQUEST.reasonPhrase,
             message = ex.message ?: "Invalid state",
-            path = getRequestPath()
+            path = exchange.request.uri.path
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException::class)
-    fun handleValidationException(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+    @ExceptionHandler(WebExchangeBindException::class)
+    fun handleValidationException(ex: WebExchangeBindException, exchange: ServerWebExchange): ResponseEntity<ErrorResponse> {
         val errorMessages = ex.bindingResult.fieldErrors
             .mapNotNull { it.defaultMessage }
             .joinToString(", ")
@@ -53,28 +57,19 @@ class GlobalExceptionHandler {
             status = HttpStatus.BAD_REQUEST.value(),
             error = HttpStatus.BAD_REQUEST.reasonPhrase,
             message = errorMessages.ifEmpty { "Validation error" },
-            path = getRequestPath()
+            path = exchange.request.uri.path
         )
         return ResponseEntity(errorResponse, HttpStatus.BAD_REQUEST)
     }
 
     @ExceptionHandler(Exception::class)
-    fun handleGenericException(ex: Exception): ResponseEntity<ErrorResponse> {
+    fun handleGenericException(ex: Exception, exchange: ServerWebExchange): ResponseEntity<ErrorResponse> {
         val errorResponse = ErrorResponse(
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
             error = HttpStatus.INTERNAL_SERVER_ERROR.reasonPhrase,
             message = ex.message ?: "An unexpected error occurred",
-            path = getRequestPath()
+            path = exchange.request.uri.path
         )
         return ResponseEntity(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR)
-    }
-
-    private fun getRequestPath(): String {
-        return try {
-            val request = org.springframework.web.context.request.RequestContextHolder.currentRequestAttributes()
-            (request as org.springframework.web.context.request.ServletRequestAttributes).request.requestURI
-        } catch (e: Exception) {
-            "Unknown"
-        }
     }
 }

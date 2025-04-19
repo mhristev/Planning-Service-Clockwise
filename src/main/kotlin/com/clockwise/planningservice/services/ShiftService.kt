@@ -9,8 +9,10 @@ import com.clockwise.planningservice.repositories.ScheduleRepository
 import com.clockwise.planningservice.repositories.ShiftRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.filter
 import org.springframework.stereotype.Service
 import java.time.LocalDateTime
+import java.time.LocalDate
 
 @Service
 class ShiftService(
@@ -97,6 +99,45 @@ class ShiftService(
             .map { mapToResponse(it) }
     }
 
+    fun getBusinessUnitShiftsForWeek(businessUnitId: String, weekStart: LocalDateTime): Flow<ShiftResponse> {
+        // Calculate the end of the week (weekStart + 6 days)
+        val weekEnd = weekStart.toLocalDate().plusDays(6).atTime(23, 59, 59)
+        
+        // Get all schedules for the business unit
+        return shiftRepository.findAll()
+            .filter { shift ->
+                // Filter shifts that fall within the week timeframe
+                val shiftDate = shift.startTime
+                (shiftDate.isEqual(weekStart) || shiftDate.isAfter(weekStart)) &&
+                (shiftDate.isEqual(weekEnd) || shiftDate.isBefore(weekEnd)) &&
+                // Check if the shift belongs to the requested business unit
+                isShiftForBusinessUnit(shift, businessUnitId)
+            }
+            .map { mapToResponse(it) }
+    }
+    
+    fun getBusinessUnitShiftsForDay(businessUnitId: String, date: LocalDateTime): Flow<ShiftResponse> {
+        val dayStart = date.toLocalDate().atStartOfDay()
+        val dayEnd = date.toLocalDate().atTime(23, 59, 59)
+        
+        return shiftRepository.findAll()
+            .filter { shift ->
+                // Filter shifts that fall within the day timeframe
+                val shiftDate = shift.startTime
+                (shiftDate.isEqual(dayStart) || shiftDate.isAfter(dayStart)) &&
+                (shiftDate.isEqual(dayEnd) || shiftDate.isBefore(dayEnd)) &&
+                // Check if the shift belongs to the requested business unit
+                isShiftForBusinessUnit(shift, businessUnitId)
+            }
+            .map { mapToResponse(it) }
+    }
+    
+    // Helper method to check if a shift belongs to a business unit
+    private suspend fun isShiftForBusinessUnit(shift: Shift, businessUnitId: String): Boolean {
+        val schedule = scheduleRepository.findById(shift.scheduleId) ?: return false
+        return schedule.restaurantId == businessUnitId
+    }
+    
     private fun mapToResponse(shift: Shift): ShiftResponse {
         return ShiftResponse(
             id = shift.id!!,

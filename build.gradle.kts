@@ -51,6 +51,7 @@ implementation("org.postgresql:r2dbc-postgresql")
 
 }
 
+
 kotlin {
 	compilerOptions {
 		freeCompilerArgs.addAll("-Xjsr305=strict")

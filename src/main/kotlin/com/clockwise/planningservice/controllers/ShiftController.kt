@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.toList
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.format.annotation.DateTimeFormat
+import java.time.LocalDateTime
 
 @RestController
 @RequestMapping("/v1")
@@ -74,6 +76,24 @@ class ShiftController(private val shiftService: ShiftService) {
     @GetMapping("/users/{id}/shifts")
     suspend fun getEmployeeShifts(@PathVariable id: String): ResponseEntity<List<ShiftResponse>> {
         val shifts = shiftService.getEmployeeShifts(id).toList()
+        return ResponseEntity.ok(shifts)
+    }
+    
+    @GetMapping("/business-units/{businessUnitId}/shifts/week")
+    suspend fun getBusinessUnitShiftsForWeek(
+        @PathVariable businessUnitId: String,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) weekStart: LocalDateTime
+    ): ResponseEntity<List<ShiftResponse>> {
+        val shifts = shiftService.getBusinessUnitShiftsForWeek(businessUnitId, weekStart).toList()
+        return ResponseEntity.ok(shifts)
+    }
+    
+    @GetMapping("/business-units/{businessUnitId}/shifts/day")
+    suspend fun getBusinessUnitShiftsForDay(
+        @PathVariable businessUnitId: String,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) date: LocalDateTime
+    ): ResponseEntity<List<ShiftResponse>> {
+        val shifts = shiftService.getBusinessUnitShiftsForDay(businessUnitId, date).toList()
         return ResponseEntity.ok(shifts)
     }
 } 

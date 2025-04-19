@@ -78,6 +78,11 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         return schedule?.let { mapToResponse(it) }
     }
 
+    suspend fun getScheduleByWeekStart(restaurantId: String, weekStart: LocalDateTime): ScheduleResponse? {
+        val schedule = scheduleRepository.findByRestaurantIdAndWeekStart(restaurantId, weekStart)
+        return schedule?.let { mapToResponse(it) }
+    }
+
     suspend fun updatePublishedSchedule(id: String, request: ScheduleRequest): ScheduleResponse {
         val existing = scheduleRepository.findById(id)
             ?: throw ResourceNotFoundException("Schedule not found with id: $id")
@@ -86,6 +91,23 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         val updated = existing.copy(
             restaurantId = request.restaurantId!!,
             weekStart = request.weekStart!!,
+            updatedAt = LocalDateTime.now()
+        )
+
+        val saved = scheduleRepository.save(updated)
+        return mapToResponse(saved)
+    }
+
+    suspend fun revertToDraft(id: String): ScheduleResponse {
+        val schedule = scheduleRepository.findById(id)
+            ?: throw ResourceNotFoundException("Schedule not found with id: $id")
+
+        if (schedule.status != ScheduleStatus.PUBLISHED) {
+            throw IllegalStateException("Only schedules in PUBLISHED status can be reverted to DRAFT")
+        }
+
+        val updated = schedule.copy(
+            status = ScheduleStatus.DRAFT,
             updatedAt = LocalDateTime.now()
         )
 

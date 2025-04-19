@@ -4,8 +4,10 @@ import com.clockwise.planningservice.dto.AvailabilityRequest
 import com.clockwise.planningservice.dto.AvailabilityResponse
 import com.clockwise.planningservice.services.AvailabilityService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.toList
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 
@@ -14,45 +16,65 @@ import java.time.LocalDateTime
 class AvailabilityController(private val availabilityService: AvailabilityService) {
 
     @PostMapping("/availabilities")
-    @ResponseStatus(HttpStatus.CREATED)
-    suspend fun createAvailability(@RequestBody request: AvailabilityRequest): AvailabilityResponse {
-        return availabilityService.createAvailability(request)
+    suspend fun createAvailability(@RequestBody request: AvailabilityRequest): ResponseEntity<AvailabilityResponse> {
+        return try {
+            val availability = availabilityService.createAvailability(request)
+            ResponseEntity.status(HttpStatus.CREATED).body(availability)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.BAD_REQUEST).build()
+        }
     }
 
     @GetMapping("/availabilities/{id}")
-    suspend fun getAvailabilityById(@PathVariable id: String): AvailabilityResponse {
-        return availabilityService.getAvailabilityById(id)
+    suspend fun getAvailabilityById(@PathVariable id: String): ResponseEntity<AvailabilityResponse> {
+        return try {
+            val availability = availabilityService.getAvailabilityById(id)
+            ResponseEntity.ok(availability)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
     }
 
     @PutMapping("/availabilities/{id}")
     suspend fun updateAvailability(
         @PathVariable id: String,
         @RequestBody request: AvailabilityRequest
-    ): AvailabilityResponse {
-        return availabilityService.updateAvailability(id, request)
+    ): ResponseEntity<AvailabilityResponse> {
+        return try {
+            val availability = availabilityService.updateAvailability(id, request)
+            ResponseEntity.ok(availability)
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
     }
 
     @DeleteMapping("/availabilities/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    suspend fun deleteAvailability(@PathVariable id: String) {
-        availabilityService.deleteAvailability(id)
+    suspend fun deleteAvailability(@PathVariable id: String): ResponseEntity<Void> {
+        return try {
+            availabilityService.deleteAvailability(id)
+            ResponseEntity.noContent().build()
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        }
     }
 
     @GetMapping("/users/{id}/availabilities")
-    fun getEmployeeAvailabilities(@PathVariable id: String): Flow<AvailabilityResponse> {
-        return availabilityService.getEmployeeAvailabilities(id)
+    suspend fun getEmployeeAvailabilities(@PathVariable id: String): ResponseEntity<List<AvailabilityResponse>> {
+        val availabilities = availabilityService.getEmployeeAvailabilities(id).toList()
+        return ResponseEntity.ok(availabilities)
     }
 
     @GetMapping("/restaurants/{id}/availabilities")
-    fun getRestaurantAvailabilities(
+    suspend fun getRestaurantAvailabilities(
         @PathVariable id: String,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: LocalDateTime?,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: LocalDateTime?
-    ): Flow<AvailabilityResponse> {
-        return if (startDate != null && endDate != null) {
-            availabilityService.getRestaurantAvailabilitiesByDateRange(id, startDate, endDate)
+    ): ResponseEntity<List<AvailabilityResponse>> {
+        val availabilities = if (startDate != null && endDate != null) {
+            availabilityService.getRestaurantAvailabilitiesByDateRange(id, startDate, endDate).toList()
         } else {
-            availabilityService.getRestaurantAvailabilities(id)
+            availabilityService.getRestaurantAvailabilities(id).toList()
         }
+        return ResponseEntity.ok(availabilities)
     }
 } 

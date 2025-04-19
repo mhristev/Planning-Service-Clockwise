@@ -17,6 +17,8 @@ data class Shift(
     val startTime: LocalDateTime,
     @Column("end_time")
     val endTime: LocalDateTime,
+    @Column("position")
+    val position: String? = null,
     @Column("created_at")
     val createdAt: LocalDateTime = LocalDateTime.now(),
     @Column("updated_at")

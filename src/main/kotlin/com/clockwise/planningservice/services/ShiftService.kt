@@ -27,11 +27,13 @@ class ShiftService(
             throw IllegalStateException("Cannot add shifts to an archived schedule")
         }
 
+       
         val shift = Shift(
             scheduleId = request.scheduleId,
             employeeId = request.employeeId!!,
             startTime = request.startTime!!,
-            endTime = request.endTime!!
+            endTime = request.endTime!!,
+            position = request.position
         )
 
         val saved = shiftRepository.save(shift)
@@ -62,6 +64,7 @@ class ShiftService(
             employeeId = request.employeeId!!,
             startTime = request.startTime!!,
             endTime = request.endTime!!,
+            position = request.position,
             updatedAt = LocalDateTime.now()
         )
 
@@ -101,6 +104,7 @@ class ShiftService(
             employeeId = shift.employeeId,
             startTime = shift.startTime,
             endTime = shift.endTime,
+            position = shift.position,
             createdAt = shift.createdAt,
             updatedAt = shift.updatedAt
         )

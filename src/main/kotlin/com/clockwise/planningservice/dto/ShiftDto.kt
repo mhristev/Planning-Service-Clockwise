@@ -10,7 +10,8 @@ data class ShiftRequest(
     val startTime: LocalDateTime?,
     @field:NotNull("End time is required")
     @field:FutureOrPresent(message = "End time must be in the present or future")
-    val endTime: LocalDateTime?
+    val endTime: LocalDateTime?,
+    val position: String? = null
 )
 
 data class ShiftResponse(
@@ -19,6 +20,7 @@ data class ShiftResponse(
     val employeeId: String,
     val startTime: LocalDateTime,
     val endTime: LocalDateTime,
+    val position: String?,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime
 ) 

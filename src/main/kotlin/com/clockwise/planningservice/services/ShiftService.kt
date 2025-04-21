@@ -98,6 +98,20 @@ class ShiftService(
         return shiftRepository.findByEmployeeId(employeeId)
             .map { mapToResponse(it) }
     }
+    
+    fun getUpcomingEmployeeShifts(employeeId: String): Flow<ShiftResponse> {
+        val now = LocalDateTime.now()
+        val today = now.toLocalDate().atStartOfDay() // Start of current day
+        
+        return shiftRepository.findByEmployeeId(employeeId)
+            .filter { shift ->
+                // Include shifts starting today or in the future
+                // This ensures today's shifts are included, even if they've already started
+                val shiftDate = shift.startTime.toLocalDate().atStartOfDay()
+                shiftDate.isEqual(today) || shiftDate.isAfter(today)
+            }
+            .map { mapToResponse(it) }
+    }
 
     fun getBusinessUnitShiftsForWeek(businessUnitId: String, weekStart: LocalDateTime): Flow<ShiftResponse> {
         // Calculate the end of the week (weekStart + 6 days)

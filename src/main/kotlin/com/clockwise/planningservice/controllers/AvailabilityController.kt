@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.toList
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.core.context.ReactiveSecurityContextHolder
+import org.springframework.security.core.context.SecurityContext
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
 
@@ -61,6 +64,19 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     @GetMapping("/users/{id}/availabilities")
     suspend fun getEmployeeAvailabilities(@PathVariable id: String): ResponseEntity<List<AvailabilityResponse>> {
         val availabilities = availabilityService.getEmployeeAvailabilities(id).toList()
+        return ResponseEntity.ok(availabilities)
+    }
+    
+    @GetMapping("/users/me/availabilities")
+    suspend fun getCurrentUserAvailabilities(
+        @RequestParam(required = false) userId: String?
+    ): ResponseEntity<List<AvailabilityResponse>> {
+        // Use provided userId or get the authenticated user's ID
+        val userIdToUse = userId ?: ReactiveSecurityContextHolder.getContext()
+            .map { context: SecurityContext -> context.authentication.name }
+            .block() ?: throw IllegalStateException("No authenticated user found")
+        
+        val availabilities = availabilityService.getEmployeeAvailabilities(userIdToUse).toList()
         return ResponseEntity.ok(availabilities)
     }
 

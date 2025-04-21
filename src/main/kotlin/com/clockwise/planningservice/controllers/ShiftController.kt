@@ -79,6 +79,12 @@ class ShiftController(private val shiftService: ShiftService) {
         return ResponseEntity.ok(shifts)
     }
     
+    @GetMapping("/users/{id}/shifts/upcoming")
+    suspend fun getUpcomingEmployeeShifts(@PathVariable id: String): ResponseEntity<List<ShiftResponse>> {
+        val shifts = shiftService.getUpcomingEmployeeShifts(id).toList()
+        return ResponseEntity.ok(shifts)
+    }
+    
     @GetMapping("/business-units/{businessUnitId}/shifts/week")
     suspend fun getBusinessUnitShiftsForWeek(
         @PathVariable businessUnitId: String,
@@ -92,6 +98,7 @@ class ShiftController(private val shiftService: ShiftService) {
     suspend fun getBusinessUnitShiftsForDay(
         @PathVariable businessUnitId: String,
         @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) date: LocalDateTime
+        
     ): ResponseEntity<List<ShiftResponse>> {
         val shifts = shiftService.getBusinessUnitShiftsForDay(businessUnitId, date).toList()
         return ResponseEntity.ok(shifts)

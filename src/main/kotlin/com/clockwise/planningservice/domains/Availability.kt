@@ -15,6 +15,8 @@ data class Availability(
     val startTime: LocalDateTime,
     @Column("end_time")
     val endTime: LocalDateTime,
+    @Column("business_unit_id")
+    val businessUnitId: String? = null,
     @Column("created_at")
     val createdAt: LocalDateTime = LocalDateTime.now(),
     @Column("updated_at")

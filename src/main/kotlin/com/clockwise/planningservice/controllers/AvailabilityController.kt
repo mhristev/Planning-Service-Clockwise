@@ -93,4 +93,18 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
         }
         return ResponseEntity.ok(availabilities)
     }
+
+    @GetMapping("/business-units/{id}/availabilities")
+    suspend fun getBusinessUnitAvailabilities(
+        @PathVariable id: String,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: LocalDateTime?,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: LocalDateTime?
+    ): ResponseEntity<List<AvailabilityResponse>> {
+        val availabilities = if (startDate != null && endDate != null) {
+            availabilityService.getBusinessUnitAvailabilitiesByDateRange(id, startDate, endDate).toList()
+        } else {
+            availabilityService.getBusinessUnitAvailabilities(id).toList()
+        }
+        return ResponseEntity.ok(availabilities)
+    }
 } 

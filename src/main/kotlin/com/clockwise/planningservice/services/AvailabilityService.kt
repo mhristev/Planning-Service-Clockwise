@@ -17,7 +17,8 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
         val availability = Availability(
             employeeId = request.employeeId!!,
             startTime = request.startTime!!,
-            endTime = request.endTime!!
+            endTime = request.endTime!!,
+            businessUnitId = request.businessUnitId
         )
 
         val saved = availabilityRepository.save(availability)
@@ -39,6 +40,7 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
             employeeId = request.employeeId!!,
             startTime = request.startTime!!,
             endTime = request.endTime!!,
+            businessUnitId = request.businessUnitId,
             updatedAt = LocalDateTime.now()
         )
 
@@ -72,12 +74,27 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
             .map { mapToResponse(it) }
     }
 
+    fun getBusinessUnitAvailabilities(businessUnitId: String): Flow<AvailabilityResponse> {
+        return availabilityRepository.findByBusinessUnitId(businessUnitId)
+            .map { mapToResponse(it) }
+    }
+
+    fun getBusinessUnitAvailabilitiesByDateRange(
+        businessUnitId: String,
+        startDate: LocalDateTime,
+        endDate: LocalDateTime
+    ): Flow<AvailabilityResponse> {
+        return availabilityRepository.findByBusinessUnitIdAndDateRange(businessUnitId, startDate, endDate)
+            .map { mapToResponse(it) }
+    }
+
     private fun mapToResponse(availability: Availability): AvailabilityResponse {
         return AvailabilityResponse(
             id = availability.id!!,
             employeeId = availability.employeeId,
             startTime = availability.startTime,
             endTime = availability.endTime,
+            businessUnitId = availability.businessUnitId,
             createdAt = availability.createdAt,
             updatedAt = availability.updatedAt
         )

@@ -12,7 +12,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.web.bind.annotation.*
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 @RestController
 @RequestMapping("/v1")
@@ -83,8 +83,8 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     @GetMapping("/restaurants/{id}/availabilities")
     suspend fun getRestaurantAvailabilities(
         @PathVariable id: String,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: LocalDateTime?,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: LocalDateTime?
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: ZonedDateTime?,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?
     ): ResponseEntity<List<AvailabilityResponse>> {
         val availabilities = if (startDate != null && endDate != null) {
             availabilityService.getRestaurantAvailabilitiesByDateRange(id, startDate, endDate).toList()
@@ -97,8 +97,8 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     @GetMapping("/business-units/{id}/availabilities")
     suspend fun getBusinessUnitAvailabilities(
         @PathVariable id: String,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: LocalDateTime?,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: LocalDateTime?
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: ZonedDateTime?,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?
     ): ResponseEntity<List<AvailabilityResponse>> {
         val availabilities = if (startDate != null && endDate != null) {
             availabilityService.getBusinessUnitAvailabilitiesByDateRange(id, startDate, endDate).toList()

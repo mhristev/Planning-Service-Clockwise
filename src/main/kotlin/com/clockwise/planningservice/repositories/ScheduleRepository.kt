@@ -1,12 +1,11 @@
 package com.clockwise.planningservice.repositories
 
-import com.clockwise.planningservice.domain.ScheduleStatus
 import com.clockwise.planningservice.domains.Schedule
 import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 @Repository
 interface ScheduleRepository : CoroutineCrudRepository<Schedule, String> {
@@ -29,8 +28,8 @@ interface ScheduleRepository : CoroutineCrudRepository<Schedule, String> {
         AND DATE(week_start) = DATE(:weekStart)
         LIMIT 1
     """)
-    suspend fun findByRestaurantIdAndWeekStart(restaurantId: String, weekStart: LocalDateTime): Schedule?
+    suspend fun findByRestaurantIdAndWeekStart(restaurantId: String, weekStart: ZonedDateTime): Schedule?
 
     @Query("UPDATE schedules SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id")
-    suspend fun updateStatus(id: String, status: ScheduleStatus): Boolean
+    suspend fun updateStatus(id: String, status: String): Boolean
 } 

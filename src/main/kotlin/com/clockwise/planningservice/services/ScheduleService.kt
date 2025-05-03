@@ -9,7 +9,8 @@ import com.clockwise.planningservice.repositories.ScheduleRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.stereotype.Service
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.time.ZoneId
 
 @Service
 class ScheduleService(private val scheduleRepository: ScheduleRepository) {
@@ -18,7 +19,7 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         val schedule = Schedule(
             restaurantId = request.restaurantId!!,
             weekStart = request.weekStart!!,
-            status = ScheduleStatus.DRAFT
+            status = "DRAFT"
         )
 
         val saved = scheduleRepository.save(schedule)
@@ -37,14 +38,14 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
             ?: throw ResourceNotFoundException("Schedule not found with id: $id")
 
         // Only allow updates if schedule is in DRAFT status
-        if (existing.status != ScheduleStatus.DRAFT) {
+        if (existing.status != "DRAFT") {
             throw IllegalStateException("Cannot update a schedule that is not in DRAFT status")
         }
 
         val updated = existing.copy(
             restaurantId = request.restaurantId!!,
             weekStart = request.weekStart!!,
-            updatedAt = LocalDateTime.now()
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
 
         val saved = scheduleRepository.save(updated)
@@ -55,13 +56,13 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         val schedule = scheduleRepository.findById(id)
             ?: throw ResourceNotFoundException("Schedule not found with id: $id")
 
-        if (schedule.status != ScheduleStatus.DRAFT) {
+        if (schedule.status != "DRAFT") {
             throw IllegalStateException("Only schedules in DRAFT status can be published")
         }
 
         val updated = schedule.copy(
-            status = ScheduleStatus.PUBLISHED,
-            updatedAt = LocalDateTime.now()
+            status = "PUBLISHED",
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
 
         val saved = scheduleRepository.save(updated)
@@ -78,7 +79,7 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         return schedule?.let { mapToResponse(it) }
     }
 
-    suspend fun getScheduleByWeekStart(restaurantId: String, weekStart: LocalDateTime): ScheduleResponse? {
+    suspend fun getScheduleByWeekStart(restaurantId: String, weekStart: ZonedDateTime): ScheduleResponse? {
         val schedule = scheduleRepository.findByRestaurantIdAndWeekStart(restaurantId, weekStart)
         return schedule?.let { mapToResponse(it) }
     }
@@ -91,7 +92,7 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         val updated = existing.copy(
             restaurantId = request.restaurantId!!,
             weekStart = request.weekStart!!,
-            updatedAt = LocalDateTime.now()
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
 
         val saved = scheduleRepository.save(updated)
@@ -102,13 +103,13 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         val schedule = scheduleRepository.findById(id)
             ?: throw ResourceNotFoundException("Schedule not found with id: $id")
 
-        if (schedule.status != ScheduleStatus.PUBLISHED) {
+        if (schedule.status != "PUBLISHED") {
             throw IllegalStateException("Only schedules in PUBLISHED status can be reverted to DRAFT")
         }
 
         val updated = schedule.copy(
-            status = ScheduleStatus.DRAFT,
-            updatedAt = LocalDateTime.now()
+            status = "DRAFT",
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
 
         val saved = scheduleRepository.save(updated)

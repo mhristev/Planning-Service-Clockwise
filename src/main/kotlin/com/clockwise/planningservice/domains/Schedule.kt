@@ -3,7 +3,8 @@ package com.clockwise.planningservice.domains
 import org.springframework.data.annotation.Id
 import org.springframework.data.relational.core.mapping.Column
 import org.springframework.data.relational.core.mapping.Table
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.time.ZoneId
 
 @Table("schedules")
 data class Schedule(
@@ -12,11 +13,11 @@ data class Schedule(
     @Column("restaurant_id")
     val restaurantId: String,
     @Column("week_start")
-    val weekStart: LocalDateTime,
+    val weekStart: ZonedDateTime,
     @Column("status")
-    val status: ScheduleStatus = ScheduleStatus.DRAFT,
+    val status: String,
     @Column("created_at")
-    val createdAt: LocalDateTime = LocalDateTime.now(),
+    val createdAt: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC")),
     @Column("updated_at")
-    val updatedAt: LocalDateTime = LocalDateTime.now()
+    val updatedAt: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC"))
 ) 

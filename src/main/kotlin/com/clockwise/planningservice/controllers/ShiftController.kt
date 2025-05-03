@@ -9,7 +9,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.format.annotation.DateTimeFormat
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 @RestController
 @RequestMapping("/v1")
@@ -85,22 +85,21 @@ class ShiftController(private val shiftService: ShiftService) {
         return ResponseEntity.ok(shifts)
     }
     
-    @GetMapping("/business-units/{businessUnitId}/shifts/week")
+    @GetMapping("/business-units/{id}/shifts/week")
     suspend fun getBusinessUnitShiftsForWeek(
-        @PathVariable businessUnitId: String,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) weekStart: LocalDateTime
+        @PathVariable id: String,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) weekStart: ZonedDateTime
     ): ResponseEntity<List<ShiftResponse>> {
-        val shifts = shiftService.getBusinessUnitShiftsForWeek(businessUnitId, weekStart).toList()
+        val shifts = shiftService.getBusinessUnitShiftsForWeek(id, weekStart).toList()
         return ResponseEntity.ok(shifts)
     }
     
-    @GetMapping("/business-units/{businessUnitId}/shifts/day")
+    @GetMapping("/business-units/{id}/shifts/day")
     suspend fun getBusinessUnitShiftsForDay(
-        @PathVariable businessUnitId: String,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) date: LocalDateTime
-        
+        @PathVariable id: String,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) date: ZonedDateTime
     ): ResponseEntity<List<ShiftResponse>> {
-        val shifts = shiftService.getBusinessUnitShiftsForDay(businessUnitId, date).toList()
+        val shifts = shiftService.getBusinessUnitShiftsForDay(id, date).toList()
         return ResponseEntity.ok(shifts)
     }
 } 

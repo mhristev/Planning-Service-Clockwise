@@ -5,7 +5,7 @@ import kotlinx.coroutines.flow.Flow
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 @Repository
 interface AvailabilityRepository : CoroutineCrudRepository<Availability, String> {
@@ -25,8 +25,8 @@ interface AvailabilityRepository : CoroutineCrudRepository<Availability, String>
     """)
     fun findByRestaurantIdAndDateRange(
         restaurantId: String,
-        startDate: LocalDateTime,
-        endDate: LocalDateTime
+        startDate: ZonedDateTime,
+        endDate: ZonedDateTime
     ): Flow<Availability>
 
     @Query("""
@@ -36,7 +36,7 @@ interface AvailabilityRepository : CoroutineCrudRepository<Availability, String>
     """)
     fun findByBusinessUnitIdAndDateRange(
         businessUnitId: String,
-        startDate: LocalDateTime,
-        endDate: LocalDateTime
+        startDate: ZonedDateTime,
+        endDate: ZonedDateTime
     ): Flow<Availability>
 } 

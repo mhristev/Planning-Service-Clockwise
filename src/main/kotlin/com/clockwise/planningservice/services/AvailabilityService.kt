@@ -8,7 +8,8 @@ import com.clockwise.planningservice.repositories.AvailabilityRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.springframework.stereotype.Service
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
+import java.time.ZoneId
 
 @Service
 class AvailabilityService(private val availabilityRepository: AvailabilityRepository) {
@@ -33,18 +34,20 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
     }
 
     suspend fun updateAvailability(id: String, request: AvailabilityRequest): AvailabilityResponse {
-        val existing = availabilityRepository.findById(id)
-            ?: throw ResourceNotFoundException("Availability not found with id: $id")
+        val existingAvailability = availabilityRepository.findById(id)
+            ?: throw IllegalArgumentException("Availability not found")
 
-        val updated = existing.copy(
-            employeeId = request.employeeId!!,
-            startTime = request.startTime!!,
-            endTime = request.endTime!!,
-            businessUnitId = request.businessUnitId,
-            updatedAt = LocalDateTime.now()
+        val updatedAvailability = Availability(
+            id = existingAvailability.id,
+            employeeId = request.employeeId ?: existingAvailability.employeeId,
+            startTime = request.startTime ?: existingAvailability.startTime,
+            endTime = request.endTime ?: existingAvailability.endTime,
+            businessUnitId = request.businessUnitId ?: existingAvailability.businessUnitId,
+            createdAt = existingAvailability.createdAt,
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
 
-        val saved = availabilityRepository.save(updated)
+        val saved = availabilityRepository.save(updatedAvailability)
         return mapToResponse(saved)
     }
 
@@ -65,10 +68,10 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
             .map { mapToResponse(it) }
     }
 
-    fun getRestaurantAvailabilitiesByDateRange(
+    suspend fun getRestaurantAvailabilitiesByDateRange(
         restaurantId: String,
-        startDate: LocalDateTime,
-        endDate: LocalDateTime
+        startDate: ZonedDateTime,
+        endDate: ZonedDateTime
     ): Flow<AvailabilityResponse> {
         return availabilityRepository.findByRestaurantIdAndDateRange(restaurantId, startDate, endDate)
             .map { mapToResponse(it) }
@@ -79,10 +82,10 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
             .map { mapToResponse(it) }
     }
 
-    fun getBusinessUnitAvailabilitiesByDateRange(
+    suspend fun getBusinessUnitAvailabilitiesByDateRange(
         businessUnitId: String,
-        startDate: LocalDateTime,
-        endDate: LocalDateTime
+        startDate: ZonedDateTime,
+        endDate: ZonedDateTime
     ): Flow<AvailabilityResponse> {
         return availabilityRepository.findByBusinessUnitIdAndDateRange(businessUnitId, startDate, endDate)
             .map { mapToResponse(it) }

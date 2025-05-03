@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.format.annotation.DateTimeFormat
 import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 @RestController
 @RequestMapping("/v1")
@@ -79,13 +80,17 @@ class ScheduleController(private val scheduleService: ScheduleService) {
     @GetMapping("/restaurants/{id}/schedules/week")
     suspend fun getScheduleByWeekStart(
         @PathVariable id: String,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) weekStart: LocalDateTime
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) weekStart: ZonedDateTime
     ): ResponseEntity<ScheduleResponse> {
-        val schedule = scheduleService.getScheduleByWeekStart(id, weekStart)
-        return if (schedule != null) {
-            ResponseEntity.ok(schedule)
-        } else {
-            ResponseEntity.status(HttpStatus.NOT_FOUND).build()
+        return try {
+            val schedule = scheduleService.getScheduleByWeekStart(id, weekStart)
+            if (schedule != null) {
+                ResponseEntity.ok(schedule)
+            } else {
+                ResponseEntity.notFound().build()
+            }
+        } catch (e: Exception) {
+            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build()
         }
     }
 

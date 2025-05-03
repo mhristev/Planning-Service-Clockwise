@@ -1,17 +1,18 @@
 package com.clockwise.planningservice.dto
 
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 data class ScheduleRequest(
     val restaurantId: String?,
-    val weekStart: LocalDateTime?
+    val weekStart: ZonedDateTime?,
+    val status: String? = "DRAFT"
 )
 
 data class ScheduleResponse(
     val id: String,
     val restaurantId: String,
-    val weekStart: LocalDateTime,
-    val status: com.clockwise.planningservice.domains.ScheduleStatus,
-    val createdAt: LocalDateTime,
-    val updatedAt: LocalDateTime
+    val weekStart: ZonedDateTime,
+    val status: String,
+    val createdAt: ZonedDateTime,
+    val updatedAt: ZonedDateTime
 ) 

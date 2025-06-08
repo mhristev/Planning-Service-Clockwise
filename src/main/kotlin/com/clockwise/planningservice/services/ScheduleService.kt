@@ -69,6 +69,11 @@ class ScheduleService(private val scheduleRepository: ScheduleRepository) {
         return mapToResponse(saved)
     }
 
+    fun getAllSchedules(): Flow<ScheduleResponse> {
+        return scheduleRepository.findAll()
+            .map { mapToResponse(it) }
+    }
+
     fun getRestaurantSchedules(restaurantId: String): Flow<ScheduleResponse> {
         return scheduleRepository.findByRestaurantId(restaurantId)
             .map { mapToResponse(it) }

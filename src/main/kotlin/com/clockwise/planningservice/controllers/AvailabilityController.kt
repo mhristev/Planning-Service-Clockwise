@@ -107,4 +107,11 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
         }
         return ResponseEntity.ok(availabilities)
     }
+
+    @GetMapping("/availabilities")
+    suspend fun getAllAvailabilities(): ResponseEntity<List<AvailabilityResponse>> {
+        // For now, return an empty list - this could be enhanced to filter by user's permissions
+        val availabilities = availabilityService.getAllAvailabilities().toList()
+        return ResponseEntity.ok(availabilities)
+    }
 } 

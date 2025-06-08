@@ -91,6 +91,11 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
             .map { mapToResponse(it) }
     }
 
+    fun getAllAvailabilities(): Flow<AvailabilityResponse> {
+        return availabilityRepository.findAll()
+            .map { mapToResponse(it) }
+    }
+
     private fun mapToResponse(availability: Availability): AvailabilityResponse {
         return AvailabilityResponse(
             id = availability.id!!,

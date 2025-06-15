@@ -8,18 +8,37 @@ import kotlinx.coroutines.flow.toList
 import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.annotation.AuthenticationPrincipal
-import org.springframework.security.core.context.ReactiveSecurityContextHolder
-import org.springframework.security.core.context.SecurityContext
+import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
 import java.time.ZonedDateTime
+import mu.KotlinLogging
+
+private val logger = KotlinLogging.logger {}
 
 @RestController
 @RequestMapping("/v1")
 class AvailabilityController(private val availabilityService: AvailabilityService) {
 
+    private fun extractUserInfo(authentication: Authentication): Map<String, Any?> {
+        val jwt = authentication.principal as Jwt
+        return mapOf(
+            "userId" to jwt.getClaimAsString("sub"),
+            "email" to jwt.getClaimAsString("email"),
+            "firstName" to jwt.getClaimAsString("given_name"),
+            "lastName" to jwt.getClaimAsString("family_name"),
+            "roles" to jwt.getClaimAsStringList("roles")
+        )
+    }
+
     @PostMapping("/availabilities")
-    suspend fun createAvailability(@RequestBody request: AvailabilityRequest): ResponseEntity<AvailabilityResponse> {
+    suspend fun createAvailability(
+        @RequestBody request: AvailabilityRequest,
+        authentication: Authentication
+    ): ResponseEntity<AvailabilityResponse> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested to create availability" }
+        
         return try {
             val availability = availabilityService.createAvailability(request)
             ResponseEntity.status(HttpStatus.CREATED).body(availability)
@@ -29,7 +48,13 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     }
 
     @GetMapping("/availabilities/{id}")
-    suspend fun getAvailabilityById(@PathVariable id: String): ResponseEntity<AvailabilityResponse> {
+    suspend fun getAvailabilityById(
+        @PathVariable id: String,
+        authentication: Authentication
+    ): ResponseEntity<AvailabilityResponse> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested to get availability with ID: $id" }
+        
         return try {
             val availability = availabilityService.getAvailabilityById(id)
             ResponseEntity.ok(availability)
@@ -41,8 +66,12 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     @PutMapping("/availabilities/{id}")
     suspend fun updateAvailability(
         @PathVariable id: String,
-        @RequestBody request: AvailabilityRequest
+        @RequestBody request: AvailabilityRequest,
+        authentication: Authentication
     ): ResponseEntity<AvailabilityResponse> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested to update availability with ID: $id" }
+        
         return try {
             val availability = availabilityService.updateAvailability(id, request)
             ResponseEntity.ok(availability)
@@ -52,7 +81,13 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     }
 
     @DeleteMapping("/availabilities/{id}")
-    suspend fun deleteAvailability(@PathVariable id: String): ResponseEntity<Void> {
+    suspend fun deleteAvailability(
+        @PathVariable id: String,
+        authentication: Authentication
+    ): ResponseEntity<Void> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested to delete availability with ID: $id" }
+        
         return try {
             availabilityService.deleteAvailability(id)
             ResponseEntity.noContent().build()
@@ -62,19 +97,27 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     }
 
     @GetMapping("/users/{id}/availabilities")
-    suspend fun getEmployeeAvailabilities(@PathVariable id: String): ResponseEntity<List<AvailabilityResponse>> {
+    suspend fun getEmployeeAvailabilities(
+        @PathVariable id: String,
+        authentication: Authentication
+    ): ResponseEntity<List<AvailabilityResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested availabilities for employee ID: $id" }
+        
         val availabilities = availabilityService.getEmployeeAvailabilities(id).toList()
         return ResponseEntity.ok(availabilities)
     }
     
     @GetMapping("/users/me/availabilities")
     suspend fun getCurrentUserAvailabilities(
-        @RequestParam(required = false) userId: String?
+        @RequestParam(required = false) userId: String?,
+        authentication: Authentication
     ): ResponseEntity<List<AvailabilityResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested their own availabilities" }
+        
         // Use provided userId or get the authenticated user's ID
-        val userIdToUse = userId ?: ReactiveSecurityContextHolder.getContext()
-            .map { context: SecurityContext -> context.authentication.name }
-            .block() ?: throw IllegalStateException("No authenticated user found")
+        val userIdToUse = userId ?: userInfo["userId"] as String
         
         val availabilities = availabilityService.getEmployeeAvailabilities(userIdToUse).toList()
         return ResponseEntity.ok(availabilities)
@@ -84,8 +127,12 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     suspend fun getRestaurantAvailabilities(
         @PathVariable id: String,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: ZonedDateTime?,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?,
+        authentication: Authentication
     ): ResponseEntity<List<AvailabilityResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested availabilities for restaurant ID: $id" }
+        
         val availabilities = if (startDate != null && endDate != null) {
             availabilityService.getRestaurantAvailabilitiesByDateRange(id, startDate, endDate).toList()
         } else {
@@ -98,8 +145,12 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     suspend fun getBusinessUnitAvailabilities(
         @PathVariable id: String,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: ZonedDateTime?,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?,
+        authentication: Authentication
     ): ResponseEntity<List<AvailabilityResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested availabilities for business unit ID: $id" }
+        
         val availabilities = if (startDate != null && endDate != null) {
             availabilityService.getBusinessUnitAvailabilitiesByDateRange(id, startDate, endDate).toList()
         } else {
@@ -109,8 +160,12 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
     }
 
     @GetMapping("/availabilities")
-    suspend fun getAllAvailabilities(): ResponseEntity<List<AvailabilityResponse>> {
-        // For now, return an empty list - this could be enhanced to filter by user's permissions
+    suspend fun getAllAvailabilities(
+        authentication: Authentication
+    ): ResponseEntity<List<AvailabilityResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested all availabilities" }
+        
         val availabilities = availabilityService.getAllAvailabilities().toList()
         return ResponseEntity.ok(availabilities)
     }

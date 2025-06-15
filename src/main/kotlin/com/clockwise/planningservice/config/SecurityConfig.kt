@@ -12,41 +12,79 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.server.ServerWebExchange
+import org.springframework.security.web.server.authorization.ServerAccessDeniedHandler
+import org.springframework.http.HttpStatus
+import reactor.core.publisher.Mono
+import org.springframework.core.io.buffer.DataBuffer
+import org.springframework.http.MediaType
 import mu.KotlinLogging
+import org.springframework.http.HttpMethod
+import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity
+import org.springframework.web.cors.CorsConfiguration
+import org.springframework.web.cors.reactive.CorsConfigurationSource
+import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource
 
 private val logger = KotlinLogging.logger {}
 
 @Configuration
 @EnableWebFluxSecurity
+@EnableReactiveMethodSecurity
 class SecurityConfig {
 
     @Value("\${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
     private lateinit var jwkSetUri: String
 
     @Bean
-    fun securityWebFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
-        logger.info { "Configuring security web filter chain with OAuth2 JWT" }
+    fun springSecurityFilterChain(http: ServerHttpSecurity): SecurityWebFilterChain {
         return http
             .csrf { it.disable() }
-            .cors { it.and() }
+            .cors { cors -> cors.configurationSource(corsConfigurationSource()) }
             .authorizeExchange { exchanges ->
                 exchanges
-                    .pathMatchers(
-                        "/actuator/**",
-                        "/health",
-                        "/v3/api-docs/**",
-                        "/swagger-ui/**",
-                        "/swagger-ui.html"
-                    ).permitAll()
+                    .pathMatchers("/actuator/**").permitAll()
+                    .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                    .pathMatchers(HttpMethod.OPTIONS).permitAll()
+                    // Schedule endpoints - Role hierarchy: admin > manager > user
+                    .pathMatchers(HttpMethod.POST, "/v1/schedules").hasAnyRole("admin", "manager")
+                    .pathMatchers(HttpMethod.PUT, "/v1/schedules/**").hasAnyRole("admin", "manager")
+                    .pathMatchers(HttpMethod.POST, "/v1/schedules/*/publish").hasAnyRole("admin", "manager")
+                    .pathMatchers(HttpMethod.POST, "/v1/schedules/*/draft").hasAnyRole("admin", "manager")
+                    .pathMatchers(HttpMethod.PUT, "/v1/schedules/*/published").hasRole("admin")
+                    // Shift endpoints - Role hierarchy: admin > manager > user
+                    .pathMatchers(HttpMethod.POST, "/v1/shifts").hasAnyRole("admin", "manager")
+                    .pathMatchers(HttpMethod.PUT, "/v1/shifts/**").hasAnyRole("admin", "manager")
+                    .pathMatchers(HttpMethod.DELETE, "/v1/shifts/**").hasAnyRole("admin", "manager")
+                    // Availability endpoints - All authenticated users can manage availabilities
+                    .pathMatchers(HttpMethod.POST, "/v1/availabilities").hasAnyRole("admin", "manager", "user")
+                    .pathMatchers(HttpMethod.PUT, "/v1/availabilities/**").hasAnyRole("admin", "manager", "user")
+                    .pathMatchers(HttpMethod.DELETE, "/v1/availabilities/**").hasAnyRole("admin", "manager", "user")
+                    // All other authenticated users can read
                     .anyExchange().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
                     jwt.jwtDecoder(jwtDecoder())
-                        .jwtAuthenticationConverter(jwtAuthenticationConverter())
+                       .jwtAuthenticationConverter(ReactiveJwtAuthenticationConverterAdapter(jwtAuthenticationConverter()))
                 }
             }
+            .exceptionHandling { exceptions ->
+                exceptions.accessDeniedHandler(accessDeniedHandler())
+            }
             .build()
+    }
+
+    @Bean
+    fun corsConfigurationSource(): CorsConfigurationSource {
+        val configuration = CorsConfiguration().apply {
+            allowedOriginPatterns = listOf("*")
+            allowedMethods = listOf("GET", "POST", "PUT", "DELETE", "OPTIONS")
+            allowedHeaders = listOf("*")
+            allowCredentials = true
+        }
+        return UrlBasedCorsConfigurationSource().apply {
+            registerCorsConfiguration("/**", configuration)
+        }
     }
 
     @Bean
@@ -56,33 +94,77 @@ class SecurityConfig {
     }
 
     @Bean
-    fun jwtAuthenticationConverter(): ReactiveJwtAuthenticationConverterAdapter {
+    fun jwtAuthenticationConverter(): JwtAuthenticationConverter {
         val converter = JwtAuthenticationConverter()
-        converter.setJwtGrantedAuthoritiesConverter { jwt: Jwt ->
-            val authorities = mutableListOf<SimpleGrantedAuthority>()
-            
-            // Extract roles from JWT claims
+        converter.setJwtGrantedAuthoritiesConverter { jwt ->
             val realmAccess = jwt.getClaimAsMap("realm_access")
-            @Suppress("UNCHECKED_CAST")
-            val roles = realmAccess?.get("roles") as? List<String>
-            roles?.forEach { role ->
-                authorities.add(SimpleGrantedAuthority("ROLE_$role"))
-            }
-            
-            // Extract resource access if present
             val resourceAccess = jwt.getClaimAsMap("resource_access")
-            resourceAccess?.forEach { (client, access) ->
-                @Suppress("UNCHECKED_CAST")
-                val clientRoles = (access as? Map<String, Any>)?.get("roles") as? List<String>
-                clientRoles?.forEach { role ->
-                    authorities.add(SimpleGrantedAuthority("ROLE_${client}_$role"))
+            
+            val authorities = mutableListOf<org.springframework.security.core.GrantedAuthority>()
+            
+            // Extract realm roles and add ROLE_ prefix
+            realmAccess?.get("roles")?.let { roles ->
+                if (roles is List<*>) {
+                    roles.filterIsInstance<String>().forEach { role ->
+                        // Add both with and without ROLE_ prefix for compatibility
+                        authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_$role"))
+                        authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority(role))
+                    }
                 }
             }
             
-            logger.debug { "Extracted authorities from JWT: ${authorities.map { it.authority }}" }
-            authorities as Collection<org.springframework.security.core.GrantedAuthority>
+            // Extract resource-specific roles and add ROLE_ prefix
+            // Note: We're only mapping auth-service admin role to admin for compatibility
+            resourceAccess?.forEach { (resource, access) ->
+                if (access is Map<*, *>) {
+                    access["roles"]?.let { roles ->
+                        if (roles is List<*>) {
+                            roles.filterIsInstance<String>().forEach { role ->
+                                when {
+                                    // Map auth-service_admin to admin role for compatibility
+                                    resource == "auth-service" && role == "admin" -> {
+                                        authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_admin"))
+                                        authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("admin"))
+                                    }
+                                    // Add other resource roles as-is
+                                    else -> {
+                                        val resourceRole = "${resource}_${role}"
+                                        authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_$resourceRole"))
+                                        authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority(resourceRole))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            logger.debug("Extracted authorities from JWT: ${authorities.map { it.authority }}")
+            authorities
         }
-        
-        return ReactiveJwtAuthenticationConverterAdapter(converter)
+        return converter
+    }
+
+    @Bean
+    fun accessDeniedHandler(): ServerAccessDeniedHandler {
+        return ServerAccessDeniedHandler { exchange: ServerWebExchange, denied ->
+            logger.warn { "Access denied: ${denied.message}" }
+            
+            val response = exchange.response
+            response.statusCode = HttpStatus.FORBIDDEN
+            response.headers.add("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+            
+            val errorMessage = """
+                {
+                    "status": 403,
+                    "error": "Access Denied",
+                    "message": "Insufficient permissions to access this resource",
+                    "path": "${exchange.request.path.value()}"
+                }
+            """.trimIndent()
+            
+            val buffer: DataBuffer = response.bufferFactory().wrap(errorMessage.toByteArray())
+            response.writeWith(Mono.just(buffer))
+        }
     }
 }

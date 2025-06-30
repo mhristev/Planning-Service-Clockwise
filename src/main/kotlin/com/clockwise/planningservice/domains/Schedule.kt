@@ -10,8 +10,8 @@ import java.time.ZoneId
 data class Schedule(
     @Id
     val id: String? = null,
-    @Column("restaurant_id")
-    val restaurantId: String,
+    @Column("business_unit_id")
+    val businessUnitId: String,
     @Column("week_start")
     val weekStart: ZonedDateTime,
     @Column("status")

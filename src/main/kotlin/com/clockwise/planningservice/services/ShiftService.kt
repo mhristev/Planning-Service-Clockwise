@@ -4,11 +4,16 @@ import com.clockwise.planningservice.ResourceNotFoundException
 import com.clockwise.planningservice.domains.Shift
 import com.clockwise.planningservice.dto.ShiftRequest
 import com.clockwise.planningservice.dto.ShiftResponse
+import com.clockwise.planningservice.dto.ShiftWithWorkSessionResponse
+import com.clockwise.planningservice.dto.WorkSessionWithNoteResponse
 import com.clockwise.planningservice.repositories.ScheduleRepository
 import com.clockwise.planningservice.repositories.ShiftRepository
+import com.clockwise.planningservice.repositories.workload.WorkSessionRepository
+import com.clockwise.planningservice.services.workload.SessionNoteService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.toList
 import org.springframework.stereotype.Service
 import java.time.ZonedDateTime
 import java.time.ZoneId
@@ -17,7 +22,9 @@ import java.time.LocalDate
 @Service
 class ShiftService(
     private val shiftRepository: ShiftRepository,
-    private val scheduleRepository: ScheduleRepository
+    private val scheduleRepository: ScheduleRepository,
+    private val workSessionRepository: WorkSessionRepository,
+    private val sessionNoteService: SessionNoteService
 ) {
 
     suspend fun createShift(request: ShiftRequest): ShiftResponse {
@@ -151,11 +158,55 @@ class ShiftService(
             }
             .map { mapToResponse(it) }
     }
+
+    /**
+     * ADMIN/MANAGER ENDPOINT: Get comprehensive shifts with work sessions and session notes
+     * for a business unit within a date range
+     */
+    suspend fun getShiftsWithWorkSessionsAndNotes(
+        businessUnitId: String,
+        startDate: ZonedDateTime,
+        endDate: ZonedDateTime
+    ): List<ShiftWithWorkSessionResponse> {
+        val shifts = shiftRepository.findByBusinessUnitIdAndDateRange(businessUnitId, startDate, endDate)
+            .toList()
+
+        return shifts.map { shift ->
+            val workSession = workSessionRepository.findByShiftId(shift.id!!)
+            val workSessionWithNote = workSession?.let { session ->
+                val sessionNote = session.id?.let { sessionId ->
+                    sessionNoteService.getNoteByWorkSessionId(sessionId)
+                }
+                WorkSessionWithNoteResponse(
+                    id = session.id,
+                    userId = session.userId,
+                    shiftId = session.shiftId,
+                    clockInTime = session.clockInTime,
+                    clockOutTime = session.clockOutTime,
+                    totalMinutes = session.totalMinutes,
+                    status = session.status,
+                    sessionNote = sessionNote
+                )
+            }
+
+            ShiftWithWorkSessionResponse(
+                id = shift.id!!,
+                scheduleId = shift.scheduleId,
+                employeeId = shift.employeeId,
+                startTime = shift.startTime,
+                endTime = shift.endTime,
+                position = shift.position,
+                createdAt = shift.createdAt,
+                updatedAt = shift.updatedAt,
+                workSession = workSessionWithNote
+            )
+        }
+    }
     
     // Helper method to check if a shift belongs to a business unit
     private suspend fun isShiftForBusinessUnit(shift: Shift, businessUnitId: String): Boolean {
         val schedule = scheduleRepository.findById(shift.scheduleId) ?: return false
-        return schedule.restaurantId == businessUnitId
+        return schedule.businessUnitId == businessUnitId
     }
     
     private fun mapToResponse(shift: Shift): ShiftResponse {

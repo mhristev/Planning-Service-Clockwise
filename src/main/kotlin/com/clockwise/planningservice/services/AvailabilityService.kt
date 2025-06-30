@@ -63,26 +63,12 @@ class AvailabilityService(private val availabilityRepository: AvailabilityReposi
             .map { mapToResponse(it) }
     }
 
-    fun getRestaurantAvailabilities(restaurantId: String): Flow<AvailabilityResponse> {
-        return availabilityRepository.findByRestaurantId(restaurantId)
-            .map { mapToResponse(it) }
-    }
-
-    suspend fun getRestaurantAvailabilitiesByDateRange(
-        restaurantId: String,
-        startDate: ZonedDateTime,
-        endDate: ZonedDateTime
-    ): Flow<AvailabilityResponse> {
-        return availabilityRepository.findByRestaurantIdAndDateRange(restaurantId, startDate, endDate)
-            .map { mapToResponse(it) }
-    }
-
     fun getBusinessUnitAvailabilities(businessUnitId: String): Flow<AvailabilityResponse> {
         return availabilityRepository.findByBusinessUnitId(businessUnitId)
             .map { mapToResponse(it) }
     }
 
-    suspend fun getBusinessUnitAvailabilitiesByDateRange(
+    fun getBusinessUnitAvailabilitiesByDateRange(
         businessUnitId: String,
         startDate: ZonedDateTime,
         endDate: ZonedDateTime

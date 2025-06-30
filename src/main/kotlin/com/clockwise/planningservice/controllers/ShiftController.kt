@@ -2,6 +2,7 @@ package com.clockwise.planningservice.controllers
 
 import com.clockwise.planningservice.dto.ShiftRequest
 import com.clockwise.planningservice.dto.ShiftResponse
+import com.clockwise.planningservice.dto.ShiftWithWorkSessionResponse
 import com.clockwise.planningservice.services.ShiftService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
@@ -164,6 +165,25 @@ class ShiftController(private val shiftService: ShiftService) {
         logger.info { "User ${userInfo["email"]} requested shifts for business unit ID: $id, date: $date" }
         
         val shifts = shiftService.getBusinessUnitShiftsForDay(id, date).toList()
+        return ResponseEntity.ok(shifts)
+    }
+
+    /**
+     * ADMIN/MANAGER ENDPOINT: Get comprehensive shifts with work sessions and session notes
+     * Available to admin and manager roles only
+     * Returns all shifts with their associated work sessions and session notes for a date range
+     */
+    @GetMapping("/business-units/{businessUnitId}/shifts/comprehensive")
+    suspend fun getShiftsWithWorkSessionsAndNotes(
+        @PathVariable businessUnitId: String,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: ZonedDateTime,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime,
+        authentication: Authentication
+    ): ResponseEntity<List<ShiftWithWorkSessionResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested comprehensive shifts for business unit ID: $businessUnitId, from: $startDate to: $endDate" }
+        
+        val shifts = shiftService.getShiftsWithWorkSessionsAndNotes(businessUnitId, startDate, endDate)
         return ResponseEntity.ok(shifts)
     }
 } 

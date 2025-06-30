@@ -10,25 +10,25 @@ import java.time.ZonedDateTime
 @Repository
 interface ScheduleRepository : CoroutineCrudRepository<Schedule, String> {
 
-    fun findByRestaurantId(restaurantId: String): Flow<Schedule>
+    fun findByBusinessUnitId(businessUnitId: String): Flow<Schedule>
 
     @Query("""
         SELECT * FROM schedules 
-        WHERE restaurant_id = :restaurantId 
+        WHERE business_unit_id = :businessUnitId 
         AND week_start <= CURRENT_DATE 
         AND week_start + INTERVAL '7 days' > CURRENT_DATE
         ORDER BY week_start DESC 
         LIMIT 1
     """)
-    suspend fun findCurrentScheduleByRestaurantId(restaurantId: String): Schedule?
+    suspend fun findCurrentScheduleByBusinessUnitId(businessUnitId: String): Schedule?
 
     @Query("""
         SELECT * FROM schedules 
-        WHERE restaurant_id = :restaurantId 
+        WHERE business_unit_id = :businessUnitId 
         AND DATE(week_start) = DATE(:weekStart)
         LIMIT 1
     """)
-    suspend fun findByRestaurantIdAndWeekStart(restaurantId: String, weekStart: ZonedDateTime): Schedule?
+    suspend fun findByBusinessUnitIdAndWeekStart(businessUnitId: String, weekStart: ZonedDateTime): Schedule?
 
     @Query("UPDATE schedules SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id")
     suspend fun updateStatus(id: String, status: String): Boolean

@@ -96,48 +96,17 @@ class AvailabilityController(private val availabilityService: AvailabilityServic
         }
     }
 
-    @GetMapping("/users/{id}/availabilities")
+    @GetMapping("/users/{userId}/availabilities")
     suspend fun getEmployeeAvailabilities(
-        @PathVariable id: String,
+        @PathVariable userId: String?,
         authentication: Authentication
     ): ResponseEntity<List<AvailabilityResponse>> {
         val userInfo = extractUserInfo(authentication)
-        logger.info { "User ${userInfo["email"]} requested availabilities for employee ID: $id" }
+        logger.info { "User ${userInfo["email"]} requested availabilities for user ID: $userId" }
         
-        val availabilities = availabilityService.getEmployeeAvailabilities(id).toList()
-        return ResponseEntity.ok(availabilities)
-    }
-    
-    @GetMapping("/users/me/availabilities")
-    suspend fun getCurrentUserAvailabilities(
-        @RequestParam(required = false) userId: String?,
-        authentication: Authentication
-    ): ResponseEntity<List<AvailabilityResponse>> {
-        val userInfo = extractUserInfo(authentication)
-        logger.info { "User ${userInfo["email"]} requested their own availabilities" }
-        
-        // Use provided userId or get the authenticated user's ID
         val userIdToUse = userId ?: userInfo["userId"] as String
         
         val availabilities = availabilityService.getEmployeeAvailabilities(userIdToUse).toList()
-        return ResponseEntity.ok(availabilities)
-    }
-
-    @GetMapping("/restaurants/{id}/availabilities")
-    suspend fun getRestaurantAvailabilities(
-        @PathVariable id: String,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) startDate: ZonedDateTime?,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) endDate: ZonedDateTime?,
-        authentication: Authentication
-    ): ResponseEntity<List<AvailabilityResponse>> {
-        val userInfo = extractUserInfo(authentication)
-        logger.info { "User ${userInfo["email"]} requested availabilities for restaurant ID: $id" }
-        
-        val availabilities = if (startDate != null && endDate != null) {
-            availabilityService.getRestaurantAvailabilitiesByDateRange(id, startDate, endDate).toList()
-        } else {
-            availabilityService.getRestaurantAvailabilities(id).toList()
-        }
         return ResponseEntity.ok(availabilities)
     }
 

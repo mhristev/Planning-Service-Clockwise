@@ -14,21 +14,6 @@ interface AvailabilityRepository : CoroutineCrudRepository<Availability, String>
 
     fun findByBusinessUnitId(businessUnitId: String): Flow<Availability>
 
-    @Query("SELECT * FROM availabilities a WHERE a.employee_id IN " +
-            "(SELECT user_id FROM restaurant_employees WHERE restaurant_id = :restaurantId)")
-    fun findByRestaurantId(restaurantId: String): Flow<Availability>
-
-    @Query("""
-        SELECT * FROM availabilities a WHERE 
-        a.employee_id IN (SELECT user_id FROM restaurant_employees WHERE restaurant_id = :restaurantId)
-        AND a.start_time >= :startDate AND a.end_time <= :endDate
-    """)
-    fun findByRestaurantIdAndDateRange(
-        restaurantId: String,
-        startDate: ZonedDateTime,
-        endDate: ZonedDateTime
-    ): Flow<Availability>
-
     @Query("""
         SELECT * FROM availabilities a WHERE 
         a.business_unit_id = :businessUnitId

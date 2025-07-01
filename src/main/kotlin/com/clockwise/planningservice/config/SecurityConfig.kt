@@ -45,25 +45,25 @@ class SecurityConfig {
                     .pathMatchers("/actuator/**").permitAll()
                     .pathMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                     .pathMatchers(HttpMethod.OPTIONS).permitAll()
-                    // Schedule endpoints - Role hierarchy: admin > manager > user
+                    // Schedule endpoints - Role hierarchy: admin > manager > employee
                     .pathMatchers(HttpMethod.POST, "/v1/schedules").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.PUT, "/v1/schedules/**").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.POST, "/v1/schedules/*/publish").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.POST, "/v1/schedules/*/draft").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.PUT, "/v1/schedules/*/published").hasRole("admin")
                     // New schedule endpoints with shifts - week-based access
-                    .pathMatchers(HttpMethod.GET, "/v1/business-units/*/schedules/week/published").hasAnyRole("admin", "manager", "user")
+                    .pathMatchers(HttpMethod.GET, "/v1/business-units/*/schedules/week/published").hasAnyRole("admin", "manager", "employee")
                     .pathMatchers(HttpMethod.GET, "/v1/business-units/*/schedules/week/admin").hasAnyRole("admin", "manager")
                     // Comprehensive shifts endpoint - admin and manager only
                     .pathMatchers(HttpMethod.GET, "/v1/business-units/*/shifts/comprehensive").hasAnyRole("admin", "manager")
-                    // Shift endpoints - Role hierarchy: admin > manager > user
+                    // Shift endpoints - Role hierarchy: admin > manager > employee
                     .pathMatchers(HttpMethod.POST, "/v1/shifts").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.PUT, "/v1/shifts/**").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.DELETE, "/v1/shifts/**").hasAnyRole("admin", "manager")
                     // Availability endpoints - All authenticated users can manage availabilities
-                    .pathMatchers(HttpMethod.POST, "/v1/availabilities").hasAnyRole("admin", "manager", "user")
-                    .pathMatchers(HttpMethod.PUT, "/v1/availabilities/**").hasAnyRole("admin", "manager", "user")
-                    .pathMatchers(HttpMethod.DELETE, "/v1/availabilities/**").hasAnyRole("admin", "manager", "user")
+                    .pathMatchers(HttpMethod.POST, "/v1/availabilities").hasAnyRole("admin", "manager", "employee")
+                    .pathMatchers(HttpMethod.PUT, "/v1/availabilities/**").hasAnyRole("admin", "manager", "employee")
+                    .pathMatchers(HttpMethod.DELETE, "/v1/availabilities/**").hasAnyRole("admin", "manager", "employee")
                     // All other authenticated users can read
                     .anyExchange().authenticated()
             }

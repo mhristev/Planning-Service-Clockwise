@@ -174,3 +174,4 @@ class ScheduleController(private val scheduleService: ScheduleService) {
         return ResponseEntity.ok(schedule)
     }
 } 
+// so in the webview make when th euser that logs in is admin make it also have extra pages. Start with first one that allows the admin to modify current users in the app by changing their role and their businessUnitId and businessUnitName for now add it to the side menu and the page should be accessibel only for admins. Connect it to the endpoints in the backend to make it work

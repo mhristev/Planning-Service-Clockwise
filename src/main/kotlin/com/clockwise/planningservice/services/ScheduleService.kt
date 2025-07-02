@@ -58,8 +58,16 @@ class ScheduleService(
         val schedule = scheduleRepository.findByBusinessUnitIdAndWeekStart(businessUnitId, normalizedWeekStart)
             ?: return null
 
+        println("🔍 DEBUG: Found schedule with ID: ${schedule.id}")
         val shifts = shiftService.getScheduleShifts(schedule.id!!).toList()
-        return mapToResponseWithShifts(schedule, shifts)
+        println("🔍 DEBUG: Found ${shifts.size} shifts for schedule")
+        shifts.forEach { shift ->
+            println("🔍 DEBUG: Shift - ID: ${shift.id}, Employee: ${shift.employeeId}, Position: ${shift.position}")
+        }
+        
+        val response = mapToResponseWithShifts(schedule, shifts)
+        println("🔍 DEBUG: Created response with ${response.shifts.size} shifts")
+        return response
     }
 
     suspend fun createSchedule(request: ScheduleRequest): ScheduleResponse {

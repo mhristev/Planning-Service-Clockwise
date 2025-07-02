@@ -84,6 +84,8 @@ class ScheduleController(private val scheduleService: ScheduleService) {
         ResponseEntity.ok(schedule.await())
     }
 
+    // in the web app theres a button to create schedule check if its fully connected to the planning service endpoint /v1/schedules post create schedule 
+
     @GetMapping("/business-units/{id}/schedules")
     suspend fun getBusinessUnitSchedules(
         @PathVariable id: String,
@@ -111,38 +113,6 @@ class ScheduleController(private val scheduleService: ScheduleService) {
         } else {
             ResponseEntity.status(HttpStatus.NOT_FOUND).build()
         }
-    }
-
-    @GetMapping("/business-units/{id}/schedules/week")
-    suspend fun getScheduleByWeekStart(
-        @PathVariable id: String,
-        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) weekStart: LocalDate,
-        authentication: Authentication
-    ): ResponseEntity<ScheduleResponse?> = coroutineScope {
-        val userInfo = extractUserInfo(authentication)
-        logger.info { "User ${userInfo["email"]} requested schedule for business unit ID: $id, week start: $weekStart" }
-        
-        val schedule = async { scheduleService.getScheduleByWeekStart(id, weekStart) }
-        val result = schedule.await()
-        if (result != null) {
-            ResponseEntity.ok(result)
-            } else {
-                ResponseEntity.notFound().build()
-        }
-    }
-
-    // dont use that!!!!
-    @PutMapping("/schedules/{id}/published")
-    suspend fun updatePublishedSchedule(
-        @PathVariable id: String,
-        @RequestBody request: ScheduleRequest,
-        authentication: Authentication
-    ): ResponseEntity<ScheduleResponse> = coroutineScope {
-        val userInfo = extractUserInfo(authentication)
-        logger.info { "User ${userInfo["email"]} requested to update published schedule with ID: $id" }
-        
-        val schedule = async { scheduleService.updatePublishedSchedule(id, request) }
-        ResponseEntity.ok(schedule.await())
     }
 
     @PostMapping("/schedules/{id}/draft")
@@ -189,11 +159,15 @@ class ScheduleController(private val scheduleService: ScheduleService) {
      * Available to admin and manager roles only
      * Returns schedules regardless of status
      */
-    @GetMapping("/business-units/{businessUnitId}/schedules/week/admin")
+    @GetMapping("/business-units/{businessUnitId}/schedules/week")
     suspend fun getScheduleWithShiftsByWeekForAdmin(
         @PathVariable businessUnitId: String,
-        @RequestParam weekStart: LocalDate
+        @RequestParam weekStart: LocalDate,
+        authentication: Authentication
     ): ResponseEntity<ScheduleWithShiftsResponse> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested schedule with shifts for business unit ID: $businessUnitId, week start: $weekStart" }
+        
         val schedule = scheduleService.getScheduleWithShiftsByWeekForAdmin(businessUnitId, weekStart)
             ?: return ResponseEntity.notFound().build()
         

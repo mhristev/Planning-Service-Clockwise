@@ -88,6 +88,10 @@ class WorkSessionService(
         )
     }
 
+    suspend fun getWorkSessionByShiftId(shiftId: String): WorkSession? {
+        return workSessionRepository.findByShiftId(shiftId)
+    }
+
     private fun toWorkSessionResponse(workSession: WorkSession): WorkSessionResponse {
         return WorkSessionResponse(
             id = workSession.id,
@@ -99,4 +103,4 @@ class WorkSessionService(
             status = workSession.status
         )
     }
-} 
+}

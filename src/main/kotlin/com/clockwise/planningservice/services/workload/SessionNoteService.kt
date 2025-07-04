@@ -68,6 +68,10 @@ class SessionNoteService(private val sessionNoteRepository: SessionNoteRepositor
         return note?.let { toSessionNoteResponse(it) }
     }
 
+    suspend fun getSessionNoteByWorkSessionId(workSessionId: String): SessionNote? {
+        return sessionNoteRepository.findSingleByWorkSessionId(workSessionId)
+    }
+
     fun getNotesByWorkSessionId(workSessionId: String): Flow<SessionNoteResponse> {
         return sessionNoteRepository.findByWorkSessionId(workSessionId)
             .map { toSessionNoteResponse(it) }
@@ -81,4 +85,4 @@ class SessionNoteService(private val sessionNoteRepository: SessionNoteRepositor
             createdAt = sessionNote.createdAt
         )
     }
-} 
+}

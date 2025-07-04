@@ -16,11 +16,20 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.ZoneId
+import com.clockwise.planningservice.dto.MonthlyScheduleDto
+import com.clockwise.planningservice.dto.ShiftWithSessionsDto
+import com.clockwise.planningservice.dto.WorkSessionDto
+import com.clockwise.planningservice.dto.SessionNoteDto
+import com.clockwise.planningservice.services.workload.WorkSessionService
+import com.clockwise.planningservice.services.workload.SessionNoteService
+import java.time.YearMonth
 
 @Service
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
-    private val shiftService: ShiftService
+    private val shiftService: ShiftService,
+    private val workSessionService: WorkSessionService,
+    private val sessionNoteService: SessionNoteService
 ) {
 
     /**
@@ -183,6 +192,82 @@ class ScheduleService(
         return mapToResponse(saved)
     }
 
+    /**
+     * Get monthly schedule for a specific user
+     * Returns all weekly schedules for the given month that contain shifts for the specified user
+     */
+    suspend fun getMonthlyScheduleForUser(
+        businessUnitId: String, 
+        userId: String, 
+        month: Int, 
+        year: Int
+    ): List<MonthlyScheduleDto> {
+        // Calculate the date range for the given month
+        val yearMonth = YearMonth.of(year, month)
+        val startDate = yearMonth.atDay(1)
+        val endDate = yearMonth.atEndOfMonth()
+        
+        // Find all weekly schedules for the business unit within the date range
+        val schedules = scheduleRepository.findByBusinessUnitIdAndWeekStartBetween(
+            businessUnitId, 
+            normalizeToWeekStart(startDate),
+            normalizeToWeekStart(endDate.plusDays(6)) // Add 6 days to catch schedules that start before the month but contain days in the month
+        ).toList()
+        
+        // For each schedule, get shifts for the specified user and their work sessions
+        val monthlySchedules = mutableListOf<MonthlyScheduleDto>()
+        
+        for (schedule in schedules) {
+            val userShifts = shiftService.getScheduleShiftsForUser(schedule.id!!, userId).toList()
+            
+            if (userShifts.isNotEmpty()) {
+                val shiftsWithSessions = mutableListOf<ShiftWithSessionsDto>()
+                
+                for (shift in userShifts) {
+                    // Get work session for this shift
+                    val workSession = workSessionService.getWorkSessionByShiftId(shift.id)
+                    
+                    val workSessionDto = if (workSession != null) {
+                        // Get session note if exists
+                        val sessionNote = sessionNoteService.getSessionNoteByWorkSessionId(workSession.id!!)
+                        
+                        WorkSessionDto(
+                            id = workSession.id!!,
+                            clockInTime = workSession.clockInTime.atZoneSameInstant(ZoneId.of("UTC")),
+                            clockOutTime = workSession.clockOutTime?.atZoneSameInstant(ZoneId.of("UTC")),
+                            note = sessionNote?.let { 
+                                SessionNoteDto(
+                                    id = it.id!!,
+                                    noteContent = it.content
+                                )
+                            }
+                        )
+                    } else null
+                    
+                    shiftsWithSessions.add(
+                        ShiftWithSessionsDto(
+                            id = shift.id,
+                            startTime = shift.startTime,
+                            endTime = shift.endTime,
+                            role = shift.position,
+                            workSession = workSessionDto
+                        )
+                    )
+                }
+                
+                monthlySchedules.add(
+                    MonthlyScheduleDto(
+                        scheduleId = schedule.id!!,
+                        weekStartDate = schedule.weekStart.toLocalDate(),
+                        shifts = shiftsWithSessions
+                    )
+                )
+            }
+        }
+        
+        return monthlySchedules
+    }
+
     private fun mapToResponse(schedule: Schedule): ScheduleResponse {
         return ScheduleResponse(
             id = schedule.id!!,
@@ -205,4 +290,4 @@ class ScheduleService(
             shifts = shifts
         )
     }
-} 
+}

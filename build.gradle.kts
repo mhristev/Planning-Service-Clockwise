@@ -60,6 +60,7 @@ implementation("org.postgresql:postgresql")
 implementation("org.postgresql:r2dbc-postgresql")
 	implementation("jakarta.validation:jakarta.validation-api")
     implementation("org.hibernate.validator:hibernate-validator")
+    implementation("org.glassfish:jakarta.el:4.0.2")
 
 
 }

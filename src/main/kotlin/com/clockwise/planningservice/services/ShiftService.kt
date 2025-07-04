@@ -101,6 +101,11 @@ class ShiftService(
             .map { mapToResponse(it) }
     }
 
+    fun getScheduleShiftsForUser(scheduleId: String, userId: String): Flow<ShiftResponse> {
+        return shiftRepository.findByScheduleIdAndEmployeeId(scheduleId, userId)
+            .map { mapToResponse(it) }
+    }
+
     fun getEmployeeShifts(employeeId: String): Flow<ShiftResponse> {
         return shiftRepository.findByEmployeeId(employeeId)
             .map { mapToResponse(it) }
@@ -221,4 +226,4 @@ class ShiftService(
             updatedAt = shift.updatedAt
         )
     }
-} 
+}

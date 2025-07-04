@@ -3,6 +3,7 @@ package com.clockwise.planningservice.controllers
 import com.clockwise.planningservice.dto.ScheduleRequest
 import com.clockwise.planningservice.dto.ScheduleResponse
 import com.clockwise.planningservice.dto.ScheduleWithShiftsResponse
+import com.clockwise.planningservice.dto.MonthlyScheduleDto
 import com.clockwise.planningservice.services.ScheduleService
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -172,6 +173,32 @@ class ScheduleController(private val scheduleService: ScheduleService) {
             ?: return ResponseEntity.notFound().build()
         
         return ResponseEntity.ok(schedule)
+    }
+
+    /**
+     * MANAGER ENDPOINT: Get monthly schedule for a specific employee
+     * Available to admin and manager roles only
+     * Returns comprehensive schedule data including work sessions and notes
+     */
+    @GetMapping("/business-units/{businessUnitId}/users/{userId}/monthly-schedule")
+    suspend fun getMonthlyScheduleForUser(
+        @PathVariable businessUnitId: String,
+        @PathVariable userId: String,
+        @RequestParam month: Int,
+        @RequestParam year: Int,
+        authentication: Authentication
+    ): ResponseEntity<List<MonthlyScheduleDto>> {
+        val userInfo = extractUserInfo(authentication)
+        
+        logger.info { "User ${userInfo["email"]} requested monthly schedule for user $userId in business unit $businessUnitId for $month/$year" }
+        
+        // Validate month parameter
+        if (month < 1 || month > 12) {
+            return ResponseEntity.badRequest().build()
+        }
+        
+        val monthlySchedule = scheduleService.getMonthlyScheduleForUser(businessUnitId, userId, month, year)
+        return ResponseEntity.ok(monthlySchedule)
     }
 } 
 // so in the webview make when th euser that logs in is admin make it also have extra pages. Start with first one that allows the admin to modify current users in the app by changing their role and their businessUnitId and businessUnitName for now add it to the side menu and the page should be accessibel only for admins. Connect it to the endpoints in the backend to make it work

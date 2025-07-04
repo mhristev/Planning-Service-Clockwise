@@ -30,6 +30,15 @@ interface ScheduleRepository : CoroutineCrudRepository<Schedule, String> {
     """)
     suspend fun findByBusinessUnitIdAndWeekStart(businessUnitId: String, weekStart: ZonedDateTime): Schedule?
 
+    @Query("""
+        SELECT * FROM schedules 
+        WHERE business_unit_id = :businessUnitId 
+        AND week_start >= :startDate 
+        AND week_start <= :endDate
+        ORDER BY week_start ASC
+    """)
+    fun findByBusinessUnitIdAndWeekStartBetween(businessUnitId: String, startDate: ZonedDateTime, endDate: ZonedDateTime): Flow<Schedule>
+
     @Query("UPDATE schedules SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id")
     suspend fun updateStatus(id: String, status: String): Boolean
-} 
+}

@@ -14,6 +14,8 @@ interface ShiftRepository : CoroutineCrudRepository<Shift, String> {
 
     fun findByEmployeeId(employeeId: String): Flow<Shift>
 
+    fun findByScheduleIdAndEmployeeId(scheduleId: String, employeeId: String): Flow<Shift>
+
     suspend fun deleteByScheduleId(scheduleId: String): Int
     
     @Query("""
@@ -29,4 +31,4 @@ interface ShiftRepository : CoroutineCrudRepository<Shift, String> {
         startDate: ZonedDateTime,
         endDate: ZonedDateTime
     ): Flow<Shift>
-} 
+}

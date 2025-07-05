@@ -134,11 +134,11 @@ class ShiftController(private val shiftService: ShiftService) {
     suspend fun getUpcomingEmployeeShifts(
         @PathVariable id: String,
         authentication: Authentication
-    ): ResponseEntity<List<ShiftResponse>> {
+    ): ResponseEntity<List<ShiftWithWorkSessionResponse>> {
         val userInfo = extractUserInfo(authentication)
         logger.info { "User ${userInfo["email"]} requested upcoming shifts for employee ID: $id" }
         
-        val shifts = shiftService.getUpcomingEmployeeShifts(id).toList()
+        val shifts = shiftService.getUpcomingEmployeeShiftsWithWorkSessions(id).toList()
         return ResponseEntity.ok(shifts)
     }
     

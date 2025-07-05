@@ -26,4 +26,20 @@ interface WorkSessionRepository : CoroutineCrudRepository<WorkSession, String> {
     suspend fun existsByShiftId(shiftId: String): Boolean
     
     suspend fun findByShiftId(shiftId: String): WorkSession?
+    
+    @Query("""
+        SELECT ws.* FROM work_sessions ws
+        INNER JOIN shifts s ON ws.shift_id = s.id
+        INNER JOIN schedules sc ON s.schedule_id = sc.id
+        WHERE sc.business_unit_id = :businessUnitId
+        AND ws.confirmed = false
+        ORDER BY ws.created_at DESC
+    """)
+    fun findUnconfirmedByBusinessUnitId(businessUnitId: String): Flow<WorkSession>
+    
+    @Query("SELECT * FROM work_sessions WHERE confirmed = :confirmed")
+    fun findByConfirmed(confirmed: Boolean): Flow<WorkSession>
+    
+    @Query("SELECT * FROM work_sessions WHERE confirmed_by = :confirmedBy")
+    fun findByConfirmedBy(confirmedBy: String): Flow<WorkSession>
 } 

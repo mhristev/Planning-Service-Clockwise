@@ -10,6 +10,8 @@ import com.clockwise.planningservice.repositories.ScheduleRepository
 import com.clockwise.planningservice.repositories.ShiftRepository
 import com.clockwise.planningservice.repositories.workload.WorkSessionRepository
 import com.clockwise.planningservice.services.workload.SessionNoteService
+import com.clockwise.planningservice.services.workload.WorkSessionService
+import com.clockwise.planningservice.dto.workload.SessionNoteRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.filter
@@ -24,7 +26,8 @@ class ShiftService(
     private val shiftRepository: ShiftRepository,
     private val scheduleRepository: ScheduleRepository,
     private val workSessionRepository: WorkSessionRepository,
-    private val sessionNoteService: SessionNoteService
+    private val sessionNoteService: SessionNoteService,
+    private val workSessionService: WorkSessionService
 ) {
 
     suspend fun createShift(request: ShiftRequest): ShiftResponse {
@@ -36,7 +39,6 @@ class ShiftService(
             throw IllegalStateException("Cannot add shifts to an archived schedule")
         }
 
-       
         val shift = Shift(
             scheduleId = request.scheduleId,
             employeeId = request.employeeId!!,
@@ -45,8 +47,25 @@ class ShiftService(
             position = request.position
         )
 
-        val saved = shiftRepository.save(shift)
-        return mapToResponse(saved)
+        val savedShift = shiftRepository.save(shift)
+        
+        // Automatically create work session for the shift
+        val workSession = workSessionService.createWorkSessionForShift(savedShift.id!!, savedShift.employeeId)
+        
+        // Automatically create session note with default content
+        try {
+            sessionNoteService.createNote(
+                SessionNoteRequest(
+                    workSessionId = workSession.id!!,
+                    content = "Shift created - awaiting manager approval"
+                )
+            )
+        } catch (e: Exception) {
+            // If note creation fails, continue - the work session is still created
+            println("Warning: Failed to create session note for work session ${workSession.id}: ${e.message}")
+        }
+        
+        return mapToResponse(savedShift)
     }
 
     suspend fun getShiftById(id: String): ShiftResponse {
@@ -78,6 +97,22 @@ class ShiftService(
         )
 
         val saved = shiftRepository.save(updated)
+        
+        // Update work session if shift times changed
+        val workSession = workSessionRepository.findByShiftId(saved.id!!)
+        if (workSession != null && (
+            workSession.clockInTime != saved.startTime.toOffsetDateTime() ||
+            workSession.clockOutTime != saved.endTime.toOffsetDateTime()
+        )) {
+            // Reset confirmation when shift is updated
+            workSessionService.modifyWorkSession(
+                workSessionId = workSession.id!!,
+                newClockInTime = saved.startTime.toOffsetDateTime(),
+                newClockOutTime = saved.endTime.toOffsetDateTime(),
+                modifiedBy = "system"
+            )
+        }
+        
         return mapToResponse(saved)
     }
 
@@ -94,6 +129,7 @@ class ShiftService(
         }
 
         shiftRepository.delete(shift)
+        // Work session will be automatically deleted due to cascade delete constraint
     }
 
     fun getScheduleShifts(scheduleId: String): Flow<ShiftResponse> {
@@ -131,6 +167,47 @@ class ShiftService(
                 !shiftStartTime.isBefore(startOfToday)
             }
             .map { mapToResponse(it) }
+    }
+
+    suspend fun getUpcomingEmployeeShiftsWithWorkSessions(employeeId: String): Flow<ShiftWithWorkSessionResponse> {
+        val now = ZonedDateTime.now(ZoneId.of("UTC"))
+        val startOfToday = now.toLocalDate().atStartOfDay(ZoneId.of("UTC"))
+
+        return shiftRepository.findByEmployeeId(employeeId)
+            .filter { shift ->
+                val shiftStartTime = shift.startTime.withZoneSameInstant(ZoneId.of("UTC"))
+                !shiftStartTime.isBefore(startOfToday)
+            }
+            .map { shift ->
+                val workSession = workSessionRepository.findByShiftId(shift.id!!)
+                val workSessionWithNote = workSession?.let { session ->
+                    val sessionNote = session.id?.let { sessionId ->
+                        sessionNoteService.getNoteByWorkSessionId(sessionId)
+                    }
+                    WorkSessionWithNoteResponse(
+                        id = session.id,
+                        userId = session.userId,
+                        shiftId = session.shiftId,
+                        clockInTime = session.clockInTime,
+                        clockOutTime = session.clockOutTime,
+                        totalMinutes = session.totalMinutes,
+                        status = session.status,
+                        sessionNote = sessionNote
+                    )
+                }
+
+                ShiftWithWorkSessionResponse(
+                    id = shift.id!!,
+                    scheduleId = shift.scheduleId,
+                    employeeId = shift.employeeId,
+                    startTime = shift.startTime,
+                    endTime = shift.endTime,
+                    position = shift.position,
+                    createdAt = shift.createdAt,
+                    updatedAt = shift.updatedAt,
+                    workSession = workSessionWithNote
+                )
+            }
     }
 
     fun getBusinessUnitShiftsForWeek(businessUnitId: String, weekStart: ZonedDateTime): Flow<ShiftResponse> {

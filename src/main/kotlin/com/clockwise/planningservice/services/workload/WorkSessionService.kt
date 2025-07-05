@@ -17,23 +17,130 @@ class WorkSessionService(
     private val shiftRepository: ShiftRepository
 ) {
 
+    /**
+     * Automatically create a work session for a shift
+     * This is called when a shift is created to ensure every shift has a work session
+     */
+    suspend fun createWorkSessionForShift(shiftId: String, employeeId: String): WorkSession {
+        // Check if work session already exists
+        val existingSession = workSessionRepository.findByShiftId(shiftId)
+        if (existingSession != null) {
+            return existingSession
+        }
+
+        // Get the shift to determine the default clock in/out times
+        val shift = shiftRepository.findById(shiftId)
+            ?: throw IllegalArgumentException("Shift with ID $shiftId does not exist")
+
+        // Create work session with shift start/end times as defaults
+        val workSession = WorkSession(
+            id = null,
+            userId = employeeId,
+            shiftId = shiftId,
+            clockInTime = shift.startTime.toOffsetDateTime(),
+            clockOutTime = shift.endTime.toOffsetDateTime(),
+            totalMinutes = java.time.Duration.between(shift.startTime, shift.endTime).toMinutes().toInt(),
+            status = WorkSessionStatus.COMPLETED,
+            confirmed = false, // Requires manager approval
+            confirmedBy = null,
+            confirmedAt = null,
+            modifiedBy = null,
+            originalClockInTime = shift.startTime.toOffsetDateTime(),
+            originalClockOutTime = shift.endTime.toOffsetDateTime()
+        )
+
+        return workSessionRepository.save(workSession)
+    }
+
+    /**
+     * Confirm a work session
+     */
+    suspend fun confirmWorkSession(workSessionId: String, confirmedBy: String): WorkSessionResponse {
+        val workSession = workSessionRepository.findById(workSessionId)
+            ?: throw IllegalArgumentException("Work session not found with ID: $workSessionId")
+        
+        val confirmedSession = workSession.copy(
+            confirmed = true,
+            confirmedBy = confirmedBy,
+            confirmedAt = OffsetDateTime.now()
+        )
+        
+        workSessionRepository.save(confirmedSession)
+        return toWorkSessionResponse(confirmedSession)
+    }
+
+    /**
+     * Modify work session times
+     */
+    suspend fun modifyWorkSession(
+        workSessionId: String,
+        newClockInTime: OffsetDateTime,
+        newClockOutTime: OffsetDateTime?,
+        modifiedBy: String
+    ): WorkSessionResponse {
+        val workSession = workSessionRepository.findById(workSessionId)
+            ?: throw IllegalArgumentException("Work session not found with ID: $workSessionId")
+        
+        val modifiedSession = workSession.copy(
+            clockInTime = newClockInTime,
+            clockOutTime = newClockOutTime,
+            modifiedBy = modifiedBy,
+            originalClockInTime = workSession.originalClockInTime ?: workSession.clockInTime,
+            originalClockOutTime = workSession.originalClockOutTime ?: workSession.clockOutTime
+        )
+        
+        workSessionRepository.save(modifiedSession)
+        return toWorkSessionResponse(modifiedSession)
+    }
+
+    /**
+     * Modify and confirm work session in one operation
+     */
+    suspend fun modifyAndConfirmWorkSession(
+        workSessionId: String,
+        newClockInTime: OffsetDateTime,
+        newClockOutTime: OffsetDateTime?,
+        modifiedBy: String
+    ): WorkSessionResponse {
+        val workSession = workSessionRepository.findById(workSessionId)
+            ?: throw IllegalArgumentException("Work session not found with ID: $workSessionId")
+        
+        val modifiedAndConfirmedSession = workSession.copy(
+            clockInTime = newClockInTime,
+            clockOutTime = newClockOutTime,
+            modifiedBy = modifiedBy,
+            originalClockInTime = workSession.originalClockInTime ?: workSession.clockInTime,
+            originalClockOutTime = workSession.originalClockOutTime ?: workSession.clockOutTime,
+            confirmed = true,
+            confirmedBy = modifiedBy,
+            confirmedAt = OffsetDateTime.now()
+        )
+        
+        workSessionRepository.save(modifiedAndConfirmedSession)
+        return toWorkSessionResponse(modifiedAndConfirmedSession)
+    }
+
     suspend fun clockIn(userId: String, shiftId: String): WorkSessionResponse {
         // Validate that the shift exists
         val shift = shiftRepository.findById(shiftId)
             ?: throw IllegalArgumentException("Shift with ID $shiftId does not exist")
         
-        if (workSessionRepository.existsByShiftId(shiftId)) {
-            throw IllegalStateException("A work session for shift $shiftId already exists")
-        }
-        
-        // Check if there's already an active session for this user and shift
-        val existingSession = workSessionRepository.findActiveByUserIdAndShiftId(userId, shiftId)
-        
+        // Check if work session already exists and update it
+        val existingSession = workSessionRepository.findByShiftId(shiftId)
         if (existingSession != null) {
-            throw IllegalStateException("User $userId already has an active work session for shift $shiftId")
+            val updatedSession = existingSession.copy(
+                clockInTime = OffsetDateTime.now(),
+                status = WorkSessionStatus.ACTIVE,
+                confirmed = false, // Reset confirmation when employee clocks in
+                confirmedBy = null,
+                confirmedAt = null,
+                updatedAt = OffsetDateTime.now()
+            )
+            val savedSession = workSessionRepository.save(updatedSession)
+            return toWorkSessionResponse(savedSession)
         }
         
-        // Create new work session
+        // Create new work session if none exists
         val workSession = WorkSession(
             id = null,
             userId = userId,
@@ -41,7 +148,8 @@ class WorkSessionService(
             clockInTime = OffsetDateTime.now(),
             clockOutTime = null,
             totalMinutes = null,
-            status = WorkSessionStatus.ACTIVE
+            status = WorkSessionStatus.ACTIVE,
+            confirmed = false
         )
         
         val savedSession = workSessionRepository.save(workSession)
@@ -53,8 +161,8 @@ class WorkSessionService(
         val shift = shiftRepository.findById(shiftId)
             ?: throw IllegalArgumentException("Shift with ID $shiftId does not exist")
             
-        val session = workSessionRepository.findActiveByUserIdAndShiftId(userId, shiftId)
-            ?: throw IllegalStateException("No active work session found for user $userId and shift $shiftId")
+        val session = workSessionRepository.findByShiftId(shiftId)
+            ?: throw IllegalStateException("No work session found for shift $shiftId")
         
         val clockOutTime = OffsetDateTime.now()
         val totalMinutes = java.time.Duration.between(session.clockInTime, clockOutTime).toMinutes().toInt()
@@ -62,7 +170,11 @@ class WorkSessionService(
         val updatedSession = session.copy(
             clockOutTime = clockOutTime,
             totalMinutes = totalMinutes,
-            status = WorkSessionStatus.COMPLETED
+            status = WorkSessionStatus.COMPLETED,
+            confirmed = false, // Reset confirmation when employee clocks out
+            confirmedBy = null,
+            confirmedAt = null,
+            updatedAt = OffsetDateTime.now()
         )
         
         val savedSession = workSessionRepository.save(updatedSession)
@@ -92,6 +204,55 @@ class WorkSessionService(
         return workSessionRepository.findByShiftId(shiftId)
     }
 
+    /**
+     * Get all unconfirmed work sessions for a business unit with shift information
+     */
+    suspend fun getUnconfirmedWorkSessionsWithShiftInfo(businessUnitId: String): List<com.clockwise.planningservice.dto.workload.WorkSessionWithShiftInfoResponse> {
+        val unconfirmedSessions = workSessionRepository.findUnconfirmedByBusinessUnitId(businessUnitId).toList()
+        
+        return unconfirmedSessions.mapNotNull { workSession ->
+            val shift = shiftRepository.findById(workSession.shiftId)
+            shift?.let { s ->
+                val sessionNote = workSession.id?.let { sessionId ->
+                    try {
+                        val sessionNoteService = org.springframework.beans.factory.annotation.Autowired::class.java
+                        null // Will be handled by the service layer
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                
+                com.clockwise.planningservice.dto.workload.WorkSessionWithShiftInfoResponse(
+                    id = workSession.id,
+                    userId = workSession.userId,
+                    shiftId = workSession.shiftId,
+                    clockInTime = workSession.clockInTime,
+                    clockOutTime = workSession.clockOutTime,
+                    totalMinutes = workSession.totalMinutes,
+                    status = workSession.status,
+                    confirmed = workSession.confirmed,
+                    confirmedBy = workSession.confirmedBy,
+                    confirmedAt = workSession.confirmedAt,
+                    modifiedBy = workSession.modifiedBy,
+                    originalClockInTime = workSession.originalClockInTime,
+                    originalClockOutTime = workSession.originalClockOutTime,
+                    shiftStartTime = s.startTime.toOffsetDateTime(),
+                    shiftEndTime = s.endTime.toOffsetDateTime(),
+                    employeeId = s.employeeId,
+                    position = s.position,
+                    sessionNote = sessionNote
+                )
+            }
+        }
+    }
+
+    /**
+     * Get all unconfirmed work sessions for a business unit
+     */
+    suspend fun getUnconfirmedWorkSessions(businessUnitId: String): List<WorkSession> {
+        return workSessionRepository.findUnconfirmedByBusinessUnitId(businessUnitId).toList()
+    }
+
     private fun toWorkSessionResponse(workSession: WorkSession): WorkSessionResponse {
         return WorkSessionResponse(
             id = workSession.id,
@@ -100,7 +261,13 @@ class WorkSessionService(
             clockInTime = workSession.clockInTime,
             clockOutTime = workSession.clockOutTime,
             totalMinutes = workSession.totalMinutes,
-            status = workSession.status
+            status = workSession.status,
+            confirmed = workSession.confirmed,
+            confirmedBy = workSession.confirmedBy,
+            confirmedAt = workSession.confirmedAt,
+            modifiedBy = workSession.modifiedBy,
+            originalClockInTime = workSession.originalClockInTime,
+            originalClockOutTime = workSession.originalClockOutTime
         )
     }
 }

@@ -1,0 +1,1 @@
+ALTER TABLE work_sessions ALTER COLUMN clock_in_time DROP NOT NULL; 

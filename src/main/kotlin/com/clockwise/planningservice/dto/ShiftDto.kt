@@ -5,6 +5,8 @@ import com.clockwise.planningservice.dto.workload.SessionNoteResponse
 import jakarta.validation.constraints.FutureOrPresent
 import org.jetbrains.annotations.NotNull
 import java.time.ZonedDateTime
+import java.time.OffsetDateTime
+import com.clockwise.planningservice.domains.workload.WorkSessionStatus
 
 data class ShiftRequest(
     val scheduleId: String?,
@@ -48,9 +50,9 @@ data class WorkSessionWithNoteResponse(
     val id: String?,
     val userId: String,
     val shiftId: String,
-    val clockInTime: java.time.OffsetDateTime,
-    val clockOutTime: java.time.OffsetDateTime?,
+    val clockInTime: OffsetDateTime?,
+    val clockOutTime: OffsetDateTime?,
     val totalMinutes: Int?,
-    val status: com.clockwise.planningservice.domains.workload.WorkSessionStatus,
+    val status: WorkSessionStatus,
     val sessionNote: SessionNoteResponse?
 ) 

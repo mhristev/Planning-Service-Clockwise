@@ -16,8 +16,9 @@ data class SessionNoteDto(
  */
 data class WorkSessionDto(
     val id: String,
-    val clockInTime: ZonedDateTime,
+    val clockInTime: ZonedDateTime?,
     val clockOutTime: ZonedDateTime?,
+    val confirmed: Boolean,
     val note: SessionNoteDto?
 )
 

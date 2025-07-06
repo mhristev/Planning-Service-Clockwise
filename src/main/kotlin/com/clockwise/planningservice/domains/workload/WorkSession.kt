@@ -10,10 +10,10 @@ data class WorkSession(
     val id: String? = null,
     val userId: String,
     val shiftId: String,
-    val clockInTime: OffsetDateTime,
+    val clockInTime: OffsetDateTime? = null,
     val clockOutTime: OffsetDateTime? = null,
     val totalMinutes: Int? = null,
-    val status: WorkSessionStatus = WorkSessionStatus.ACTIVE,
+    val status: WorkSessionStatus = WorkSessionStatus.CREATED,
     val confirmed: Boolean = false,
     val confirmedBy: String? = null,
     val confirmedAt: OffsetDateTime? = null,
@@ -25,5 +25,5 @@ data class WorkSession(
 )
 
 enum class WorkSessionStatus {
-    ACTIVE, COMPLETED, CANCELLED
+    CREATED, ACTIVE, COMPLETED, CANCELLED
 } 

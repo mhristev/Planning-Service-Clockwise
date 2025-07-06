@@ -101,7 +101,6 @@ class ShiftService(
         // Update work session if shift times changed
         val workSession = workSessionRepository.findByShiftId(saved.id!!)
         if (workSession != null && (
-            workSession.clockInTime != saved.startTime.toOffsetDateTime() ||
             workSession.clockOutTime != saved.endTime.toOffsetDateTime()
         )) {
             // Reset confirmation when shift is updated
@@ -250,45 +249,52 @@ class ShiftService(
         startDate: ZonedDateTime,
         endDate: ZonedDateTime
     ): List<ShiftWithWorkSessionResponse> {
-        val shifts = shiftRepository.findByBusinessUnitIdAndDateRange(businessUnitId, startDate, endDate)
-            .toList()
+        val schedules = scheduleRepository.findByBusinessUnitIdAndWeekStartBetween(
+            businessUnitId, startDate, endDate
+        ).toList()
 
-        return shifts.map { shift ->
-            val workSession = workSessionRepository.findByShiftId(shift.id!!)
-            val workSessionWithNote = workSession?.let { session ->
-                val sessionNote = session.id?.let { sessionId ->
-                    sessionNoteService.getNoteByWorkSessionId(sessionId)
+        val shiftResponses = mutableListOf<ShiftWithWorkSessionResponse>()
+
+        for (schedule in schedules) {
+            val shifts = shiftRepository.findByScheduleId(schedule.id!!).toList()
+            for (shift in shifts) {
+                val workSession = workSessionRepository.findByShiftId(shift.id!!)
+                val workSessionWithNote = workSession?.let { session ->
+                    val sessionNote = session.id?.let { sessionId ->
+                        sessionNoteService.getNoteByWorkSessionId(sessionId)
+                    }
+                    WorkSessionWithNoteResponse(
+                        id = session.id,
+                        userId = session.userId,
+                        shiftId = session.shiftId,
+                        clockInTime = session.clockInTime,
+                        clockOutTime = session.clockOutTime,
+                        totalMinutes = session.totalMinutes,
+                        status = session.status,
+                        sessionNote = sessionNote
+                    )
                 }
-                WorkSessionWithNoteResponse(
-                    id = session.id,
-                    userId = session.userId,
-                    shiftId = session.shiftId,
-                    clockInTime = session.clockInTime,
-                    clockOutTime = session.clockOutTime,
-                    totalMinutes = session.totalMinutes,
-                    status = session.status,
-                    sessionNote = sessionNote
+
+                ShiftWithWorkSessionResponse(
+                    id = shift.id!!,
+                    scheduleId = shift.scheduleId,
+                    employeeId = shift.employeeId,
+                    startTime = shift.startTime,
+                    endTime = shift.endTime,
+                    position = shift.position,
+                    createdAt = shift.createdAt,
+                    updatedAt = shift.updatedAt,
+                    workSession = workSessionWithNote
                 )
             }
-
-            ShiftWithWorkSessionResponse(
-                id = shift.id!!,
-                scheduleId = shift.scheduleId,
-                employeeId = shift.employeeId,
-                startTime = shift.startTime,
-                endTime = shift.endTime,
-                position = shift.position,
-                createdAt = shift.createdAt,
-                updatedAt = shift.updatedAt,
-                workSession = workSessionWithNote
-            )
         }
+        return shiftResponses
     }
     
     // Helper method to check if a shift belongs to a business unit
     private suspend fun isShiftForBusinessUnit(shift: Shift, businessUnitId: String): Boolean {
-        val schedule = scheduleRepository.findById(shift.scheduleId) ?: return false
-        return schedule.businessUnitId == businessUnitId
+        val schedule = scheduleRepository.findById(shift.scheduleId)
+        return schedule?.businessUnitId == businessUnitId
     }
     
     private fun mapToResponse(shift: Shift): ShiftResponse {

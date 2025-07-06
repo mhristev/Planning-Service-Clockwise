@@ -32,21 +32,17 @@ class WorkSessionService(
         val shift = shiftRepository.findById(shiftId)
             ?: throw IllegalArgumentException("Shift with ID $shiftId does not exist")
 
-        // Create work session with shift start/end times as defaults
+        // Create a new work session with null values
         val workSession = WorkSession(
-            id = null,
             userId = employeeId,
             shiftId = shiftId,
-            clockInTime = shift.startTime.toOffsetDateTime(),
-            clockOutTime = shift.endTime.toOffsetDateTime(),
-            totalMinutes = java.time.Duration.between(shift.startTime, shift.endTime).toMinutes().toInt(),
-            status = WorkSessionStatus.COMPLETED,
-            confirmed = false, // Requires manager approval
-            confirmedBy = null,
-            confirmedAt = null,
-            modifiedBy = null,
-            originalClockInTime = shift.startTime.toOffsetDateTime(),
-            originalClockOutTime = shift.endTime.toOffsetDateTime()
+            clockInTime = null,
+            clockOutTime = null,
+            totalMinutes = null,
+            status = WorkSessionStatus.CREATED,
+            confirmed = false,
+            originalClockInTime = null,
+            originalClockOutTime = null
         )
 
         return workSessionRepository.save(workSession)
@@ -81,9 +77,19 @@ class WorkSessionService(
         val workSession = workSessionRepository.findById(workSessionId)
             ?: throw IllegalArgumentException("Work session not found with ID: $workSessionId")
         
+        val totalMinutes = if (newClockOutTime != null) {
+            ChronoUnit.MINUTES.between(newClockInTime, newClockOutTime).toInt()
+        } else {
+            null
+        }
+
+        val newStatus = if (newClockOutTime != null) WorkSessionStatus.COMPLETED else WorkSessionStatus.ACTIVE
+
         val modifiedSession = workSession.copy(
             clockInTime = newClockInTime,
             clockOutTime = newClockOutTime,
+            totalMinutes = totalMinutes,
+            status = newStatus,
             modifiedBy = modifiedBy,
             originalClockInTime = workSession.originalClockInTime ?: workSession.clockInTime,
             originalClockOutTime = workSession.originalClockOutTime ?: workSession.clockOutTime
@@ -105,9 +111,19 @@ class WorkSessionService(
         val workSession = workSessionRepository.findById(workSessionId)
             ?: throw IllegalArgumentException("Work session not found with ID: $workSessionId")
         
+        val totalMinutes = if (newClockOutTime != null) {
+            ChronoUnit.MINUTES.between(newClockInTime, newClockOutTime).toInt()
+        } else {
+            null
+        }
+
+        val newStatus = if (newClockOutTime != null) WorkSessionStatus.COMPLETED else WorkSessionStatus.ACTIVE
+        
         val modifiedAndConfirmedSession = workSession.copy(
             clockInTime = newClockInTime,
             clockOutTime = newClockOutTime,
+            totalMinutes = totalMinutes,
+            status = newStatus,
             modifiedBy = modifiedBy,
             originalClockInTime = workSession.originalClockInTime ?: workSession.clockInTime,
             originalClockOutTime = workSession.originalClockOutTime ?: workSession.clockOutTime,

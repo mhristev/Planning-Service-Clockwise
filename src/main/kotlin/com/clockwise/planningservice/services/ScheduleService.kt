@@ -233,8 +233,8 @@ class ScheduleService(
                         
                         WorkSessionDto(
                             id = workSession.id!!,
-                            clockInTime = workSession.clockInTime?.atZoneSameInstant(ZoneId.of("UTC")) as ZonedDateTime?,
-                            clockOutTime = workSession.clockOutTime?.atZoneSameInstant(ZoneId.of("UTC")) as ZonedDateTime?,
+                            clockInTime = workSession.clockInTime?.atZoneSameInstant(ZoneId.of("UTC")),
+                            clockOutTime = workSession.clockOutTime?.atZoneSameInstant(ZoneId.of("UTC")),
                             confirmed = workSession.confirmed,
                             note = sessionNote?.let { 
                                 SessionNoteDto(

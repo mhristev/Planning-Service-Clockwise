@@ -9,9 +9,11 @@ import com.clockwise.planningservice.dto.WorkSessionWithNoteResponse
 import com.clockwise.planningservice.repositories.ScheduleRepository
 import com.clockwise.planningservice.repositories.ShiftRepository
 import com.clockwise.planningservice.repositories.workload.WorkSessionRepository
+import com.clockwise.planningservice.repositories.workload.SessionNoteRepository
 import com.clockwise.planningservice.services.workload.SessionNoteService
 import com.clockwise.planningservice.services.workload.WorkSessionService
 import com.clockwise.planningservice.dto.workload.SessionNoteRequest
+import com.clockwise.planningservice.utils.toOffsetDateTime
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.filter
@@ -26,6 +28,7 @@ class ShiftService(
     private val shiftRepository: ShiftRepository,
     private val scheduleRepository: ScheduleRepository,
     private val workSessionRepository: WorkSessionRepository,
+    private val sessionNoteRepository: SessionNoteRepository,
     private val sessionNoteService: SessionNoteService,
     private val workSessionService: WorkSessionService
 ) {
@@ -38,7 +41,7 @@ class ShiftService(
         if (schedule.status == "ARCHIVED") {
             throw IllegalStateException("Cannot add shifts to an archived schedule")
         }
-
+       
         val shift = Shift(
             scheduleId = request.scheduleId,
             employeeId = request.employeeId!!,
@@ -52,12 +55,12 @@ class ShiftService(
         // Automatically create work session for the shift
         val workSession = workSessionService.createWorkSessionForShift(savedShift.id!!, savedShift.employeeId)
         
-        // Automatically create session note with default content
+        // Automatically create session note with empty content initially
         try {
             sessionNoteService.createNote(
                 SessionNoteRequest(
                     workSessionId = workSession.id!!,
-                    content = "Shift created - awaiting manager approval"
+                    content = ""
                 )
             )
         } catch (e: Exception) {
@@ -100,14 +103,17 @@ class ShiftService(
         
         // Update work session if shift times changed
         val workSession = workSessionRepository.findByShiftId(saved.id!!)
+        val shiftStartOffset = saved.startTime.toOffsetDateTime()
+        val shiftEndOffset = saved.endTime.toOffsetDateTime()
+        
         if (workSession != null && (
-            workSession.clockOutTime != saved.endTime.toOffsetDateTime()
+            workSession.clockOutTime != shiftEndOffset || workSession.clockInTime != shiftStartOffset
         )) {
             // Reset confirmation when shift is updated
             workSessionService.modifyWorkSession(
                 workSessionId = workSession.id!!,
-                newClockInTime = saved.startTime.toOffsetDateTime(),
-                newClockOutTime = saved.endTime.toOffsetDateTime(),
+                newClockInTime = shiftStartOffset,
+                newClockOutTime = shiftEndOffset,
                 modifiedBy = "system"
             )
         }
@@ -127,8 +133,19 @@ class ShiftService(
             throw IllegalStateException("Cannot delete shifts from an archived schedule")
         }
 
+        // Manually delete related entities before deleting the shift
+        val workSession = workSessionRepository.findByShiftId(id)
+        if (workSession != null) {
+            // Delete the session note if it exists
+            val sessionNote = sessionNoteService.getSessionNoteByWorkSessionId(workSession.id!!)
+            if (sessionNote != null) {
+                sessionNoteRepository.delete(sessionNote)
+            }
+            // Delete the work session
+            workSessionRepository.delete(workSession)
+        }
+
         shiftRepository.delete(shift)
-        // Work session will be automatically deleted due to cascade delete constraint
     }
 
     fun getScheduleShifts(scheduleId: String): Flow<ShiftResponse> {
@@ -258,34 +275,34 @@ class ShiftService(
         for (schedule in schedules) {
             val shifts = shiftRepository.findByScheduleId(schedule.id!!).toList()
             for (shift in shifts) {
-                val workSession = workSessionRepository.findByShiftId(shift.id!!)
-                val workSessionWithNote = workSession?.let { session ->
-                    val sessionNote = session.id?.let { sessionId ->
-                        sessionNoteService.getNoteByWorkSessionId(sessionId)
-                    }
-                    WorkSessionWithNoteResponse(
-                        id = session.id,
-                        userId = session.userId,
-                        shiftId = session.shiftId,
-                        clockInTime = session.clockInTime,
-                        clockOutTime = session.clockOutTime,
-                        totalMinutes = session.totalMinutes,
-                        status = session.status,
-                        sessionNote = sessionNote
-                    )
+            val workSession = workSessionRepository.findByShiftId(shift.id!!)
+            val workSessionWithNote = workSession?.let { session ->
+                val sessionNote = session.id?.let { sessionId ->
+                    sessionNoteService.getNoteByWorkSessionId(sessionId)
                 }
-
-                ShiftWithWorkSessionResponse(
-                    id = shift.id!!,
-                    scheduleId = shift.scheduleId,
-                    employeeId = shift.employeeId,
-                    startTime = shift.startTime,
-                    endTime = shift.endTime,
-                    position = shift.position,
-                    createdAt = shift.createdAt,
-                    updatedAt = shift.updatedAt,
-                    workSession = workSessionWithNote
+                WorkSessionWithNoteResponse(
+                    id = session.id,
+                    userId = session.userId,
+                    shiftId = session.shiftId,
+                    clockInTime = session.clockInTime,
+                    clockOutTime = session.clockOutTime,
+                    totalMinutes = session.totalMinutes,
+                    status = session.status,
+                    sessionNote = sessionNote
                 )
+            }
+
+                shiftResponses.add(ShiftWithWorkSessionResponse(
+                id = shift.id!!,
+                scheduleId = shift.scheduleId,
+                employeeId = shift.employeeId,
+                startTime = shift.startTime,
+                endTime = shift.endTime,
+                position = shift.position,
+                createdAt = shift.createdAt,
+                updatedAt = shift.updatedAt,
+                workSession = workSessionWithNote
+                ))
             }
         }
         return shiftResponses

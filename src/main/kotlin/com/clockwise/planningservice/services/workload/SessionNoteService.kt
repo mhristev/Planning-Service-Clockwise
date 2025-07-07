@@ -85,4 +85,15 @@ class SessionNoteService(private val sessionNoteRepository: SessionNoteRepositor
             createdAt = sessionNote.createdAt
         )
     }
+
+    fun toResponse(sessionNote: SessionNote?): SessionNoteResponse? {
+        return sessionNote?.let {
+            SessionNoteResponse(
+                id = it.id,
+                workSessionId = it.workSessionId,
+                content = it.content,
+                createdAt = it.createdAt
+            )
+        }
+    }
 }

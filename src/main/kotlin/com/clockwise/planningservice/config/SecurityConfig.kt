@@ -119,14 +119,14 @@ class SecurityConfig {
             }
             
             // Extract resource-specific roles and add ROLE_ prefix
-            // Note: We're only mapping auth-service admin role to admin for compatibility
+            // Note: We're mapping auth-service roles to standard roles for compatibility
             resourceAccess?.forEach { (resource, access) ->
                 if (access is Map<*, *>) {
                     access["roles"]?.let { roles ->
                         if (roles is List<*>) {
                             roles.filterIsInstance<String>().forEach { role ->
                                 when {
-                                    // Map auth-service_admin to admin role for compatibility
+                                    // Map auth-service roles to standard roles for compatibility
                                     resource == "auth-service" && role == "admin" -> {
                                         authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_admin"))
                                         authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("admin"))

@@ -6,6 +6,7 @@ import com.clockwise.planningservice.domains.workload.WorkSession
 import com.clockwise.planningservice.domains.workload.WorkSessionStatus
 import com.clockwise.planningservice.repositories.workload.WorkSessionRepository
 import com.clockwise.planningservice.repositories.ShiftRepository
+import com.clockwise.planningservice.utils.toOffsetDateTime
 import kotlinx.coroutines.flow.toList
 import org.springframework.stereotype.Service
 import java.time.OffsetDateTime
@@ -14,7 +15,8 @@ import java.time.temporal.ChronoUnit
 @Service
 class WorkSessionService(
     private val workSessionRepository: WorkSessionRepository,
-    private val shiftRepository: ShiftRepository
+    private val shiftRepository: ShiftRepository,
+    private val sessionNoteService: SessionNoteService
 ) {
 
     /**
@@ -181,7 +183,11 @@ class WorkSessionService(
             ?: throw IllegalStateException("No work session found for shift $shiftId")
         
         val clockOutTime = OffsetDateTime.now()
-        val totalMinutes = java.time.Duration.between(session.clockInTime, clockOutTime).toMinutes().toInt()
+        val totalMinutes = if (session.clockInTime != null) {
+            java.time.Duration.between(session.clockInTime, clockOutTime).toMinutes().toInt()
+        } else {
+            null
+        }
         
         val updatedSession = session.copy(
             clockOutTime = clockOutTime,
@@ -231,8 +237,7 @@ class WorkSessionService(
             shift?.let { s ->
                 val sessionNote = workSession.id?.let { sessionId ->
                     try {
-                        val sessionNoteService = org.springframework.beans.factory.annotation.Autowired::class.java
-                        null // Will be handled by the service layer
+                        sessionNoteService.getSessionNoteByWorkSessionId(sessionId)
                     } catch (e: Exception) {
                         null
                     }
@@ -256,7 +261,7 @@ class WorkSessionService(
                     shiftEndTime = s.endTime.toOffsetDateTime(),
                     employeeId = s.employeeId,
                     position = s.position,
-                    sessionNote = sessionNote
+                    sessionNote = sessionNoteService.toResponse(sessionNote)
                 )
             }
         }

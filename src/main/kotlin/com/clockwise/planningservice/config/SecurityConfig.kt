@@ -102,18 +102,27 @@ class SecurityConfig {
     fun jwtAuthenticationConverter(): JwtAuthenticationConverter {
         val converter = JwtAuthenticationConverter()
         converter.setJwtGrantedAuthoritiesConverter { jwt ->
+            // Add detailed logging to see what's in the JWT
+            logger.info("JWT Claims: ${jwt.claims}")
+            logger.info("JWT Subject: ${jwt.subject}")
+            
             val realmAccess = jwt.getClaimAsMap("realm_access")
             val resourceAccess = jwt.getClaimAsMap("resource_access")
+            
+            logger.info("Realm access: $realmAccess")
+            logger.info("Resource access: $resourceAccess")
             
             val authorities = mutableListOf<org.springframework.security.core.GrantedAuthority>()
             
             // Extract realm roles and add ROLE_ prefix
             realmAccess?.get("roles")?.let { roles ->
                 if (roles is List<*>) {
+                    logger.info("Found realm roles: $roles")
                     roles.filterIsInstance<String>().forEach { role ->
                         // Add both with and without ROLE_ prefix for compatibility
                         authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_$role"))
                         authorities.add(org.springframework.security.core.authority.SimpleGrantedAuthority(role))
+                        logger.info("Added authorities for role '$role': ROLE_$role, $role")
                     }
                 }
             }
@@ -144,7 +153,7 @@ class SecurityConfig {
                 }
             }
             
-            logger.debug("Extracted authorities from JWT: ${authorities.map { it.authority }}")
+            logger.info("Final extracted authorities from JWT: ${authorities.map { it.authority }}")
             authorities
         }
         return converter

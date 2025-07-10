@@ -208,6 +208,9 @@ class ShiftService(
                         clockOutTime = session.clockOutTime,
                         totalMinutes = session.totalMinutes,
                         status = session.status,
+                        confirmed = session.confirmed,
+                        confirmedBy = session.confirmedBy,
+                        confirmedAt = session.confirmedAt,
                         sessionNote = sessionNote
                     )
                 }
@@ -288,6 +291,9 @@ class ShiftService(
                     clockOutTime = session.clockOutTime,
                     totalMinutes = session.totalMinutes,
                     status = session.status,
+                    confirmed = session.confirmed,
+                    confirmedBy = session.confirmedBy,
+                    confirmedAt = session.confirmedAt,
                     sessionNote = sessionNote
                 )
             }

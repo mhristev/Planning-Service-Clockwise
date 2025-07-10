@@ -54,5 +54,8 @@ data class WorkSessionWithNoteResponse(
     val clockOutTime: OffsetDateTime?,
     val totalMinutes: Int?,
     val status: WorkSessionStatus,
+    val confirmed: Boolean = false,
+    val confirmedBy: String? = null,
+    val confirmedAt: OffsetDateTime? = null,
     val sessionNote: SessionNoteResponse?
 ) 

@@ -12,6 +12,7 @@ import com.clockwise.planningservice.repositories.workload.WorkSessionRepository
 import com.clockwise.planningservice.repositories.workload.SessionNoteRepository
 import com.clockwise.planningservice.services.workload.SessionNoteService
 import com.clockwise.planningservice.services.workload.WorkSessionService
+import com.clockwise.planningservice.service.UserInfoService
 import com.clockwise.planningservice.dto.workload.SessionNoteRequest
 import com.clockwise.planningservice.utils.toOffsetDateTime
 import kotlinx.coroutines.flow.Flow
@@ -30,7 +31,8 @@ class ShiftService(
     private val workSessionRepository: WorkSessionRepository,
     private val sessionNoteRepository: SessionNoteRepository,
     private val sessionNoteService: SessionNoteService,
-    private val workSessionService: WorkSessionService
+    private val workSessionService: WorkSessionService,
+    private val userInfoService: UserInfoService
 ) {
 
     suspend fun createShift(request: ShiftRequest): ShiftResponse {
@@ -51,6 +53,9 @@ class ShiftService(
         )
 
         val savedShift = shiftRepository.save(shift)
+        
+        // Trigger async user info request (fire and forget)
+        userInfoService.requestUserInfo(savedShift.employeeId, savedShift.id!!)
         
         // Automatically create work session for the shift
         val workSession = workSessionService.createWorkSessionForShift(savedShift.id!!, savedShift.employeeId)
@@ -222,6 +227,8 @@ class ShiftService(
                     startTime = shift.startTime,
                     endTime = shift.endTime,
                     position = shift.position,
+                    employeeFirstName = shift.employeeFirstName,
+                    employeeLastName = shift.employeeLastName,
                     createdAt = shift.createdAt,
                     updatedAt = shift.updatedAt,
                     workSession = workSessionWithNote
@@ -305,6 +312,8 @@ class ShiftService(
                 startTime = shift.startTime,
                 endTime = shift.endTime,
                 position = shift.position,
+                employeeFirstName = shift.employeeFirstName,
+                employeeLastName = shift.employeeLastName,
                 createdAt = shift.createdAt,
                 updatedAt = shift.updatedAt,
                 workSession = workSessionWithNote
@@ -328,6 +337,8 @@ class ShiftService(
             startTime = shift.startTime,
             endTime = shift.endTime,
             position = shift.position,
+            employeeFirstName = shift.employeeFirstName,
+            employeeLastName = shift.employeeLastName,
             createdAt = shift.createdAt,
             updatedAt = shift.updatedAt
         )

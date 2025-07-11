@@ -24,6 +24,8 @@ data class ShiftResponse(
     val startTime: ZonedDateTime,
     val endTime: ZonedDateTime,
     val position: String?,
+    val employeeFirstName: String?,
+    val employeeLastName: String?,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
 )
@@ -38,6 +40,8 @@ data class ShiftWithWorkSessionResponse(
     val startTime: ZonedDateTime,
     val endTime: ZonedDateTime,
     val position: String?,
+    val employeeFirstName: String?,
+    val employeeLastName: String?,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime,
     val workSession: WorkSessionWithNoteResponse?

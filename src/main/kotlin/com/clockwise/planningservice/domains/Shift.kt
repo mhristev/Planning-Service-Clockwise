@@ -20,6 +20,10 @@ data class Shift(
     val endTime: ZonedDateTime,
     @Column("position")
     val position: String? = null,
+    @Column("employee_first_name")
+    val employeeFirstName: String? = null,
+    @Column("employee_last_name")
+    val employeeLastName: String? = null,
     @Column("created_at")
     val createdAt: ZonedDateTime = ZonedDateTime.now(ZoneId.of("UTC")),
     @Column("updated_at")

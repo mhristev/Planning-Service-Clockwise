@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.toList
 import org.springframework.stereotype.Service
 import java.time.ZonedDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.LocalDate
 
 @Service
@@ -319,6 +320,64 @@ class ShiftService(
                 workSession = workSessionWithNote
                 ))
             }
+        }
+        return shiftResponses
+    }
+    
+    /**
+     * ADMIN/MANAGER ENDPOINT: Get comprehensive shifts with work sessions and session notes
+     * for a business unit within a specific month and year
+     */
+    suspend fun getShiftsWithWorkSessionsAndNotesByMonth(
+        businessUnitId: String,
+        month: Int,
+        year: Int
+    ): List<ShiftWithWorkSessionResponse> {
+        // Calculate the start and end dates for the specified month
+        val startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneOffset.UTC)
+        val endDate = startDate.plusMonths(1).minusNanos(1)
+        
+        // Query shifts directly by their start_time within the month range
+        val shifts = shiftRepository.findByBusinessUnitIdAndDateRange(
+            businessUnitId, startDate, endDate
+        ).toList()
+
+        val shiftResponses = mutableListOf<ShiftWithWorkSessionResponse>()
+
+        for (shift in shifts) {
+            val workSession = workSessionRepository.findByShiftId(shift.id!!)
+            val workSessionWithNote = workSession?.let { session ->
+                val sessionNote = session.id?.let { sessionId ->
+                    sessionNoteService.getNoteByWorkSessionId(sessionId)
+                }
+                WorkSessionWithNoteResponse(
+                    id = session.id,
+                    userId = session.userId,
+                    shiftId = session.shiftId,
+                    clockInTime = session.clockInTime,
+                    clockOutTime = session.clockOutTime,
+                    totalMinutes = session.totalMinutes,
+                    status = session.status,
+                    confirmed = session.confirmed,
+                    confirmedBy = session.confirmedBy,
+                    confirmedAt = session.confirmedAt,
+                    sessionNote = sessionNote
+                )
+            }
+
+            shiftResponses.add(ShiftWithWorkSessionResponse(
+                id = shift.id!!,
+                scheduleId = shift.scheduleId,
+                employeeId = shift.employeeId,
+                startTime = shift.startTime,
+                endTime = shift.endTime,
+                position = shift.position,
+                employeeFirstName = shift.employeeFirstName,
+                employeeLastName = shift.employeeLastName,
+                createdAt = shift.createdAt,
+                updatedAt = shift.updatedAt,
+                workSession = workSessionWithNote
+            ))
         }
         return shiftResponses
     }

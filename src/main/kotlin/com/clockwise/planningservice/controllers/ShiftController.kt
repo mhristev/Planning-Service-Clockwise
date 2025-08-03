@@ -186,4 +186,23 @@ class ShiftController(private val shiftService: ShiftService) {
         val shifts = shiftService.getShiftsWithWorkSessionsAndNotes(businessUnitId, startDate, endDate)
         return ResponseEntity.ok(shifts)
     }
+
+    /**
+     * ADMIN/MANAGER ENDPOINT: Get comprehensive shifts with work sessions and session notes for a specific month
+     * Available to admin and manager roles only
+     * Returns all shifts with their associated work sessions and session notes for a given month and year
+     */
+    @GetMapping("/business-units/{businessUnitId}/shifts/monthly")
+    suspend fun getShiftsWithWorkSessionsAndNotesByMonth(
+        @PathVariable businessUnitId: String,
+        @RequestParam month: Int,
+        @RequestParam year: Int,
+        authentication: Authentication
+    ): ResponseEntity<List<ShiftWithWorkSessionResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested monthly shifts for business unit ID: $businessUnitId, month: $month, year: $year" }
+        
+        val shifts = shiftService.getShiftsWithWorkSessionsAndNotesByMonth(businessUnitId, month, year)
+        return ResponseEntity.ok(shifts)
+    }
 } 

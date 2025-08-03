@@ -56,6 +56,8 @@ class SecurityConfig {
                     .pathMatchers(HttpMethod.GET, "/v1/business-units/*/schedules/week").hasAnyRole("admin", "manager")
                     // Comprehensive shifts endpoint - admin and manager only
                     .pathMatchers(HttpMethod.GET, "/v1/business-units/*/shifts/comprehensive").hasAnyRole("admin", "manager")
+                    // Monthly shifts endpoint - admin and manager only
+                    .pathMatchers(HttpMethod.GET, "/v1/business-units/*/shifts/monthly").hasAnyRole("admin", "manager")
                     // Shift endpoints - Role hierarchy: admin > manager > employee
                     .pathMatchers(HttpMethod.POST, "/v1/shifts").hasAnyRole("admin", "manager")
                     .pathMatchers(HttpMethod.PUT, "/v1/shifts/**").hasAnyRole("admin", "manager")

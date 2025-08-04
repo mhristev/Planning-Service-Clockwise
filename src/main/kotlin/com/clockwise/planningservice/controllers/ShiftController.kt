@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
@@ -203,6 +204,27 @@ class ShiftController(private val shiftService: ShiftService) {
         logger.info { "User ${userInfo["email"]} requested monthly shifts for business unit ID: $businessUnitId, month: $month, year: $year" }
         
         val shifts = shiftService.getShiftsWithWorkSessionsAndNotesByMonth(businessUnitId, month, year)
+        return ResponseEntity.ok(shifts)
+    }
+
+    /**
+     * ADMIN/MANAGER/EMPLOYEE ENDPOINT: Get comprehensive shifts with work sessions and session notes for a specific user by month
+     * Available to admin, manager, and employee roles
+     * Returns all shifts for a specific user with their associated work sessions and session notes for a given month and year
+     */
+    @GetMapping("/business-units/{businessUnitId}/users/{userId}/shifts/monthly")
+    @PreAuthorize("hasAnyRole('admin', 'manager', 'employee')")
+    suspend fun getShiftsWithWorkSessionsAndNotesByMonthForUser(
+        @PathVariable businessUnitId: String,
+        @PathVariable userId: String,
+        @RequestParam month: Int,
+        @RequestParam year: Int,
+        authentication: Authentication
+    ): ResponseEntity<List<ShiftWithWorkSessionResponse>> {
+        val userInfo = extractUserInfo(authentication)
+        logger.info { "User ${userInfo["email"]} requested monthly shifts for business unit ID: $businessUnitId, user ID: $userId, month: $month, year: $year" }
+        
+        val shifts = shiftService.getShiftsWithWorkSessionsAndNotesByMonthForUser(businessUnitId, userId, month, year)
         return ResponseEntity.ok(shifts)
     }
 } 

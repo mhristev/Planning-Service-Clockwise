@@ -12,7 +12,6 @@ import org.springframework.format.annotation.DateTimeFormat
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
-import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -55,5 +54,13 @@ class WorkSessionController(private val workSessionService: WorkSessionService) 
         
         val workHours = async { workSessionService.getEmployeeWorkHours(userId, startDateTime, endDateTime) }
         ResponseEntity(workHours.await(), HttpStatus.OK)
+    }
+
+    @GetMapping("/{workSessionId}")
+    suspend fun getWorkSessionById(
+        @PathVariable workSessionId: String
+    ): ResponseEntity<WorkSessionResponse> = coroutineScope {
+        val workSession = async { workSessionService.getWorkSessionById(workSessionId) }
+        ResponseEntity(workSession.await(), HttpStatus.OK)
     }
 } 

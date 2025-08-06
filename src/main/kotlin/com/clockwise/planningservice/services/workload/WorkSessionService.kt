@@ -226,6 +226,12 @@ class WorkSessionService(
         return workSessionRepository.findByShiftId(shiftId)
     }
 
+    suspend fun getWorkSessionById(workSessionId: String): WorkSessionResponse {
+        val workSession = workSessionRepository.findById(workSessionId)
+            ?: throw IllegalArgumentException("Work session not found with ID: $workSessionId")
+        return toWorkSessionResponse(workSession)
+    }
+
     /**
      * Get all unconfirmed work sessions for a business unit with shift information
      */

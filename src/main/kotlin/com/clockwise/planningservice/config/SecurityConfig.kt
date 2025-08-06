@@ -66,6 +66,8 @@ class SecurityConfig {
                     .pathMatchers(HttpMethod.POST, "/v1/availabilities").hasAnyRole("admin", "manager", "employee")
                     .pathMatchers(HttpMethod.PUT, "/v1/availabilities/**").hasAnyRole("admin", "manager", "employee")
                     .pathMatchers(HttpMethod.DELETE, "/v1/availabilities/**").hasAnyRole("admin", "manager", "employee")
+                    // Work session endpoints - Get by ID restricted to admin and manager
+                    .pathMatchers(HttpMethod.GET, "/v1/work-sessions/*").hasAnyRole("admin", "manager")
                     // All other authenticated users can read
                     .anyExchange().authenticated()
             }

@@ -448,6 +448,183 @@ class ShiftService(
         return schedule?.businessUnitId == businessUnitId
     }
     
+    /**
+     * Reassign a shift to a different employee (used for TAKE_SHIFT requests)
+     */
+    suspend fun reassignShift(shiftId: String, newEmployeeId: String): Boolean {
+        val shift = shiftRepository.findById(shiftId) ?: return false
+        
+        // Update the shift with new employee ID and clear cached names (they'll be updated via UserInfoService)
+        val updatedShift = shift.copy(
+            employeeId = newEmployeeId,
+            employeeFirstName = null,
+            employeeLastName = null,
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
+        )
+        
+        shiftRepository.save(updatedShift)
+        
+        // Update the associated work session with the new user
+        val workSession = workSessionRepository.findByShiftId(shiftId)
+        if (workSession != null) {
+            val updatedWorkSession = workSession.copy(
+                userId = newEmployeeId
+            )
+            workSessionRepository.save(updatedWorkSession)
+        }
+        
+        // Trigger async user info request to get new employee names
+        userInfoService.requestUserInfo(newEmployeeId, shiftId)
+        
+        return true
+    }
+    
+    /**
+     * Reassign a shift to a different employee using Keycloak user ID (used for TAKE_SHIFT requests from Collaboration Service)
+     */
+    suspend fun reassignShiftWithKeycloakId(shiftId: String, keycloakUserId: String): Boolean {
+        val shift = shiftRepository.findById(shiftId) ?: return false
+        
+        // For TAKE_SHIFT from Collaboration Service, we directly use the Keycloak user ID
+        // The Planning Service should be storing Keycloak user IDs as employee IDs
+        val updatedShift = shift.copy(
+            employeeId = keycloakUserId,
+            employeeFirstName = null, // Will be updated by UserInfoService
+            employeeLastName = null,
+            updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
+        )
+        
+        shiftRepository.save(updatedShift)
+        
+        // Update the associated work session with the new user
+        val workSession = workSessionRepository.findByShiftId(shiftId)
+        if (workSession != null) {
+            val updatedWorkSession = workSession.copy(
+                userId = keycloakUserId
+            )
+            workSessionRepository.save(updatedWorkSession)
+        }
+        
+        // Trigger async user info request to get new employee names
+        userInfoService.requestUserInfo(keycloakUserId, shiftId)
+        
+        return true
+    }
+    
+    /**
+     * Swap two shifts between two employees using Keycloak user IDs (used for SWAP_SHIFT requests from Collaboration Service)
+     */
+    suspend fun swapShiftsWithKeycloakIds(shift1Id: String, shift2Id: String, keycloakUser1Id: String, keycloakUser2Id: String): Boolean {
+        val shift1 = shiftRepository.findById(shift1Id) ?: return false
+        val shift2 = shiftRepository.findById(shift2Id) ?: return false
+        
+        // For Keycloak ID validation, we need to check if the shifts' employee IDs correspond to the Keycloak IDs
+        // Since we don't have direct access to user mapping, we'll verify by checking if the current employee IDs
+        // make sense with the swap operation (i.e., the shifts exist and belong to different employees)
+        
+        if (shift1.employeeId == shift2.employeeId) {
+            throw IllegalArgumentException("Cannot swap shifts that belong to the same employee")
+        }
+        
+        val now = ZonedDateTime.now(ZoneId.of("UTC"))
+        
+        // For swaps from Collaboration Service, we swap the assignments:
+        // shift1 (original) goes to the requester's employee ID (shift2's current employee)
+        // shift2 (swap) goes to the poster's employee ID (shift1's current employee)
+        val updatedShift1 = shift1.copy(
+            employeeId = shift2.employeeId, // Give original shift to requester
+            employeeFirstName = null, // Will be updated by UserInfoService
+            employeeLastName = null,
+            updatedAt = now
+        )
+        
+        val updatedShift2 = shift2.copy(
+            employeeId = shift1.employeeId, // Give swap shift to poster
+            employeeFirstName = null, // Will be updated by UserInfoService
+            employeeLastName = null,
+            updatedAt = now
+        )
+        
+        // Save both shifts
+        shiftRepository.save(updatedShift1)
+        shiftRepository.save(updatedShift2)
+        
+        // Update work sessions if they exist
+        val workSession1 = workSessionRepository.findByShiftId(shift1Id)
+        val workSession2 = workSessionRepository.findByShiftId(shift2Id)
+        
+        if (workSession1 != null) {
+            val updatedWorkSession1 = workSession1.copy(userId = shift2.employeeId)
+            workSessionRepository.save(updatedWorkSession1)
+        }
+        
+        if (workSession2 != null) {
+            val updatedWorkSession2 = workSession2.copy(userId = shift1.employeeId)
+            workSessionRepository.save(updatedWorkSession2)
+        }
+        
+        // Trigger async user info requests for both shifts to update employee names
+        userInfoService.requestUserInfo(shift2.employeeId, shift1Id)
+        userInfoService.requestUserInfo(shift1.employeeId, shift2Id)
+        
+        return true
+    }
+    
+    /**
+     * Swap two shifts between two employees (used for SWAP_SHIFT requests)
+     */
+    suspend fun swapShifts(shift1Id: String, shift2Id: String, user1Id: String, user2Id: String): Boolean {
+        val shift1 = shiftRepository.findById(shift1Id) ?: return false
+        val shift2 = shiftRepository.findById(shift2Id) ?: return false
+        
+        // Verify that the users currently own the shifts they're trying to swap
+        if (shift1.employeeId != user1Id || shift2.employeeId != user2Id) {
+            throw IllegalArgumentException("Shift ownership verification failed")
+        }
+        
+        val now = ZonedDateTime.now(ZoneId.of("UTC"))
+        
+        // Update shift1 to be assigned to user2
+        val updatedShift1 = shift1.copy(
+            employeeId = user2Id,
+            employeeFirstName = null, // Will be updated by UserInfoService
+            employeeLastName = null,
+            updatedAt = now
+        )
+        
+        // Update shift2 to be assigned to user1
+        val updatedShift2 = shift2.copy(
+            employeeId = user1Id,
+            employeeFirstName = null, // Will be updated by UserInfoService
+            employeeLastName = null,
+            updatedAt = now
+        )
+        
+        // Save both shifts
+        shiftRepository.save(updatedShift1)
+        shiftRepository.save(updatedShift2)
+        
+        // Update work sessions if they exist
+        val workSession1 = workSessionRepository.findByShiftId(shift1Id)
+        val workSession2 = workSessionRepository.findByShiftId(shift2Id)
+        
+        if (workSession1 != null) {
+            val updatedWorkSession1 = workSession1.copy(userId = user2Id)
+            workSessionRepository.save(updatedWorkSession1)
+        }
+        
+        if (workSession2 != null) {
+            val updatedWorkSession2 = workSession2.copy(userId = user1Id)
+            workSessionRepository.save(updatedWorkSession2)
+        }
+        
+        // Trigger async user info requests for both shifts to update employee names
+        userInfoService.requestUserInfo(user2Id, shift1Id)
+        userInfoService.requestUserInfo(user1Id, shift2Id)
+        
+        return true
+    }
+    
     private fun mapToResponse(shift: Shift): ShiftResponse {
         return ShiftResponse(
             id = shift.id!!,

@@ -17,7 +17,7 @@ interface AvailabilityRepository : CoroutineCrudRepository<Availability, String>
     @Query("""
         SELECT * FROM availabilities a WHERE 
         a.business_unit_id = :businessUnitId
-        AND a.start_time >= :startDate AND a.end_time <= :endDate
+        AND a.start_time <= :endDate AND a.end_time >= :startDate
     """)
     fun findByBusinessUnitIdAndDateRange(
         businessUnitId: String,

@@ -50,7 +50,9 @@ class ShiftService(
             employeeId = request.employeeId!!,
             startTime = request.startTime!!,
             endTime = request.endTime!!,
-            position = request.position
+            position = request.position,
+            userFirstName = request.userFirstName,
+            userLastName = request.userLastName
         )
 
         val savedShift = shiftRepository.save(shift)
@@ -228,8 +230,8 @@ class ShiftService(
                     startTime = shift.startTime,
                     endTime = shift.endTime,
                     position = shift.position,
-                    employeeFirstName = shift.employeeFirstName,
-                    employeeLastName = shift.employeeLastName,
+                    userFirstName = shift.userFirstName,
+                    userLastName = shift.userLastName,
                     createdAt = shift.createdAt,
                     updatedAt = shift.updatedAt,
                     workSession = workSessionWithNote
@@ -313,8 +315,8 @@ class ShiftService(
                 startTime = shift.startTime,
                 endTime = shift.endTime,
                 position = shift.position,
-                employeeFirstName = shift.employeeFirstName,
-                employeeLastName = shift.employeeLastName,
+                userFirstName = shift.userFirstName,
+                userLastName = shift.userLastName,
                 createdAt = shift.createdAt,
                 updatedAt = shift.updatedAt,
                 workSession = workSessionWithNote
@@ -372,8 +374,8 @@ class ShiftService(
                 startTime = shift.startTime,
                 endTime = shift.endTime,
                 position = shift.position,
-                employeeFirstName = shift.employeeFirstName,
-                employeeLastName = shift.employeeLastName,
+                userFirstName = shift.userFirstName,
+                userLastName = shift.userLastName,
                 createdAt = shift.createdAt,
                 updatedAt = shift.updatedAt,
                 workSession = workSessionWithNote
@@ -432,8 +434,8 @@ class ShiftService(
                 startTime = shift.startTime,
                 endTime = shift.endTime,
                 position = shift.position,
-                employeeFirstName = shift.employeeFirstName,
-                employeeLastName = shift.employeeLastName,
+                userFirstName = shift.userFirstName,
+                userLastName = shift.userLastName,
                 createdAt = shift.createdAt,
                 updatedAt = shift.updatedAt,
                 workSession = workSessionWithNote
@@ -457,8 +459,8 @@ class ShiftService(
         // Update the shift with new employee ID and clear cached names (they'll be updated via UserInfoService)
         val updatedShift = shift.copy(
             employeeId = newEmployeeId,
-            employeeFirstName = null,
-            employeeLastName = null,
+            userFirstName = null,
+            userLastName = null,
             updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
         
@@ -489,8 +491,8 @@ class ShiftService(
         // The Planning Service should be storing Keycloak user IDs as employee IDs
         val updatedShift = shift.copy(
             employeeId = keycloakUserId,
-            employeeFirstName = null, // Will be updated by UserInfoService
-            employeeLastName = null,
+            userFirstName = null, // Will be updated by UserInfoService
+            userLastName = null,
             updatedAt = ZonedDateTime.now(ZoneId.of("UTC"))
         )
         
@@ -533,15 +535,15 @@ class ShiftService(
         // shift2 (swap) goes to the poster's employee ID (shift1's current employee)
         val updatedShift1 = shift1.copy(
             employeeId = shift2.employeeId, // Give original shift to requester
-            employeeFirstName = null, // Will be updated by UserInfoService
-            employeeLastName = null,
+            userFirstName = null, // Will be updated by UserInfoService
+            userLastName = null,
             updatedAt = now
         )
         
         val updatedShift2 = shift2.copy(
             employeeId = shift1.employeeId, // Give swap shift to poster
-            employeeFirstName = null, // Will be updated by UserInfoService
-            employeeLastName = null,
+            userFirstName = null, // Will be updated by UserInfoService
+            userLastName = null,
             updatedAt = now
         )
         
@@ -587,16 +589,16 @@ class ShiftService(
         // Update shift1 to be assigned to user2
         val updatedShift1 = shift1.copy(
             employeeId = user2Id,
-            employeeFirstName = null, // Will be updated by UserInfoService
-            employeeLastName = null,
+            userFirstName = null, // Will be updated by UserInfoService
+            userLastName = null,
             updatedAt = now
         )
         
         // Update shift2 to be assigned to user1
         val updatedShift2 = shift2.copy(
             employeeId = user1Id,
-            employeeFirstName = null, // Will be updated by UserInfoService
-            employeeLastName = null,
+            userFirstName = null, // Will be updated by UserInfoService
+            userLastName = null,
             updatedAt = now
         )
         
@@ -633,8 +635,8 @@ class ShiftService(
             startTime = shift.startTime,
             endTime = shift.endTime,
             position = shift.position,
-            employeeFirstName = shift.employeeFirstName,
-            employeeLastName = shift.employeeLastName,
+            userFirstName = shift.userFirstName,
+            userLastName = shift.userLastName,
             createdAt = shift.createdAt,
             updatedAt = shift.updatedAt
         )

@@ -14,7 +14,9 @@ data class ShiftRequest(
     val startTime: ZonedDateTime?,
     val position: String?,
     val businessUnitId: String?,
-    val endTime: ZonedDateTime?
+    val endTime: ZonedDateTime?,
+    val userFirstName: String?,
+    val userLastName: String?
 )
 
 data class ShiftResponse(
@@ -24,8 +26,8 @@ data class ShiftResponse(
     val startTime: ZonedDateTime,
     val endTime: ZonedDateTime,
     val position: String?,
-    val employeeFirstName: String?,
-    val employeeLastName: String?,
+    val userFirstName: String?,
+    val userLastName: String?,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime
 )
@@ -40,8 +42,8 @@ data class ShiftWithWorkSessionResponse(
     val startTime: ZonedDateTime,
     val endTime: ZonedDateTime,
     val position: String?,
-    val employeeFirstName: String?,
-    val employeeLastName: String?,
+    val userFirstName: String?,
+    val userLastName: String?,
     val createdAt: ZonedDateTime,
     val updatedAt: ZonedDateTime,
     val workSession: WorkSessionWithNoteResponse?

@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component
 
 /**
  * Listener for user info responses from User Service
- * Updates shift records with employee names when received
+ * Updates shift records with user names when received
  */
 @Component
 class UserInfoResponseListener(
@@ -40,19 +40,19 @@ class UserInfoResponseListener(
                 return
             }
             
-            // Update shift with employee names
+            // Update shift with user names
             val shift = shiftRepository.findById(response.shiftId)
             if (shift != null) {
                 val updatedShift = shift.copy(
-                    employeeFirstName = response.firstName,
-                    employeeLastName = response.lastName
+                    userFirstName = response.firstName,
+                    userLastName = response.lastName
                 )
                 
                 shiftRepository.save(updatedShift)
-                logger.info("Successfully updated shift {} with employee names: {} {}", 
+                logger.info("Successfully updated shift {} with user names: {} {}", 
                            response.shiftId, response.firstName, response.lastName)
             } else {
-                logger.warn("Shift with ID {} not found when trying to update employee names", response.shiftId)
+                logger.warn("Shift with ID {} not found when trying to update user names", response.shiftId)
             }
             
             ack.acknowledge()

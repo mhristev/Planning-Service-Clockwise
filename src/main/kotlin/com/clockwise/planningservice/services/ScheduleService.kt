@@ -22,14 +22,25 @@ import com.clockwise.planningservice.dto.WorkSessionDto
 import com.clockwise.planningservice.dto.SessionNoteDto
 import com.clockwise.planningservice.services.workload.WorkSessionService
 import com.clockwise.planningservice.services.workload.SessionNoteService
+import com.clockwise.planningservice.service.KafkaProducerService
+import com.clockwise.planningservice.listener.UsersByBusinessUnitResponseListener
 import java.time.YearMonth
+import java.util.UUID
+import mu.KotlinLogging
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+
+private val logger = KotlinLogging.logger {}
 
 @Service
 class ScheduleService(
     private val scheduleRepository: ScheduleRepository,
     private val shiftService: ShiftService,
     private val workSessionService: WorkSessionService,
-    private val sessionNoteService: SessionNoteService
+    private val sessionNoteService: SessionNoteService,
+    private val kafkaProducerService: KafkaProducerService,
+    private val usersByBusinessUnitResponseListener: UsersByBusinessUnitResponseListener,
+    private val isFirebaseEnabled: Boolean
 ) {
 
     /**
@@ -134,6 +145,18 @@ class ScheduleService(
         )
 
         val saved = scheduleRepository.save(updated)
+        
+        logger.info { "Schedule ${saved.id} published successfully. Firebase enabled: $isFirebaseEnabled" }
+        
+        // Trigger notifications for users with shifts in this schedule
+        if (isFirebaseEnabled) {
+            logger.info { "Triggering notifications for published schedule ${saved.id}" }
+            // Call the notification trigger asynchronously to avoid blocking
+            triggerSchedulePublishedNotificationsAsync(saved)
+        } else {
+            logger.info { "Firebase is disabled - skipping notifications for schedule ${saved.id}" }
+        }
+        
         return mapToResponse(saved)
     }
 
@@ -290,5 +313,54 @@ class ScheduleService(
             updatedAt = schedule.updatedAt,
             shifts = shifts
         )
+    }
+    
+    /**
+     * Triggers push notifications for schedule publication asynchronously
+     */
+    private fun triggerSchedulePublishedNotificationsAsync(schedule: Schedule) {
+        // Launch this asynchronously to avoid blocking the main thread
+        GlobalScope.launch {
+            try {
+                logger.info { "Starting notification trigger for schedule ${schedule.id}" }
+                val correlationId = UUID.randomUUID().toString()
+                
+                // Get all shifts for this schedule and group by user (now properly async)
+                val shifts = shiftService.getScheduleShifts(schedule.id!!).toList()
+                logger.info { "Retrieved ${shifts.size} shifts for schedule ${schedule.id}" }
+                
+                // Group shifts by user ID - only users with shifts should receive notifications
+                val userShifts = shifts.groupBy { it.employeeId }
+                logger.info { "Grouped shifts by user: ${userShifts.keys}" }
+                
+                if (userShifts.isEmpty()) {
+                    logger.info { "No shifts found for schedule ${schedule.id} - no notifications to send" }
+                    return@launch
+                }
+                
+                logger.info { "Found shifts for ${userShifts.size} users in schedule ${schedule.id}" }
+                
+                // Register pending notification with user shift information
+                usersByBusinessUnitResponseListener.registerPendingScheduleNotification(
+                    correlationId, 
+                    schedule, 
+                    userShifts
+                )
+                logger.info { "Registered pending notification with correlation ID: $correlationId" }
+                
+                // Request users by business unit
+                kafkaProducerService.requestUsersByBusinessUnitId(schedule.businessUnitId, correlationId)
+                    .subscribe(
+                        { 
+                            logger.info { "Successfully requested users for schedule notification: ${schedule.id}" }
+                        },
+                        { error ->
+                            logger.error(error) { "Failed to request users for schedule notification: ${error.message}" }
+                        }
+                    )
+            } catch (e: Exception) {
+                logger.error(e) { "Error triggering notifications for schedule ${schedule.id}: ${e.message}" }
+            }
+        }
     }
 }

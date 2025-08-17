@@ -36,6 +36,8 @@ dependencies {
 	implementation("org.springframework:spring-jdbc")
 	implementation("org.springframework.kafka:spring-kafka")
 	implementation("io.github.microutils:kotlin-logging-jvm:3.0.5")
+	// Firebase Admin SDK for push notifications
+	implementation("com.google.firebase:firebase-admin:9.4.1")
 	developmentOnly("org.springframework.boot:spring-boot-docker-compose")
 	runtimeOnly("org.postgresql:postgresql")
 	runtimeOnly("org.postgresql:r2dbc-postgresql")

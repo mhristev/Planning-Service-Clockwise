@@ -31,4 +31,18 @@ interface ShiftRepository : CoroutineCrudRepository<Shift, String> {
         startDate: ZonedDateTime,
         endDate: ZonedDateTime
     ): Flow<Shift>
+    
+    @Query("""
+        SELECT * FROM shifts 
+        WHERE employee_id = :userId
+        AND (
+            (start_time < :endTime AND end_time > :startTime)
+        )
+        ORDER BY start_time ASC
+    """)
+    fun findOverlappingShiftsForUser(
+        userId: String,
+        startTime: ZonedDateTime,
+        endTime: ZonedDateTime
+    ): Flow<Shift>
 }
